@@ -8,12 +8,18 @@ A Progressive Web Application (PWA) for managing a weekly college football pick'
 
 ## 🎯 Features
 
-- **Admin Interface**: Upload weekly betting lines via Excel
-- **Mobile-First UI**: Select games on the go with touch-friendly interface
+**MVP (Current):**
+- **Admin**: Upload weekly betting lines via command-line script (no web UI)
+- **Mobile-First UI**: Select 6 games on the go with touch-friendly interface
+- **Excel Download**: Generate formatted picks file in exact required format
 - **PWA Support**: Install as a native app on iOS/Android
-- **Excel Integration**: Automated parsing and generation of Excel files
 - **Offline Capable**: Works without internet connection
 - **Zero Cost**: Runs on Azure free tier
+
+**Coming Soon:**
+- Web-based admin interface for uploading lines
+- User authentication and pick history
+- Automated scoring and leaderboards
 
 ## 🏗️ Architecture
 
@@ -174,18 +180,29 @@ dotnet publish -c Release
 
 ### Admin: Upload Weekly Lines
 
-1. Navigate to `/admin`
-2. Select week number
-3. Upload Excel file (use format from `reference-docs/Week 1 Lines.xlsx`)
-4. Click "Upload"
+**Option 1: Using helper script (recommended)**
+```bash
+./infrastructure/scripts/upload-lines.sh path/to/Week1.xlsx 1
+```
+
+**Option 2: Using Azure CLI directly**
+```bash
+az storage blob upload \
+  --account-name <storage-account-name> \
+  --container-name gamefiles \
+  --name "lines/week-1.xlsx" \
+  --file "Week 1 Lines.xlsx" \
+  --auth-mode login
+```
 
 ### User: Make Picks
 
-1. Navigate to `/pick-games`
-2. Select 6 games by tapping on them
-3. Enter your name
-4. Click "Download Picks"
-5. Open Excel file and email to admin
+1. Navigate to the web app
+2. Select the current week from dropdown
+3. Tap 6 games to select them
+4. Enter your name
+5. Click "Download Picks"
+6. Open Excel file and email to admin
 
 ## 🔒 Security
 
@@ -237,14 +254,16 @@ Access dashboards in Azure Portal.
 ## 🗺️ Roadmap
 
 ### MVP (Current Phase)
-- [x] Project setup
-- [ ] Excel parsing and generation
-- [ ] Azure Functions API
-- [ ] Blazor PWA UI
+- [x] Project setup and infrastructure
+- [ ] Excel parsing and generation (exact format match)
+- [ ] Azure Functions API (user endpoints only)
+- [ ] Blazor PWA UI (user interface only)
+- [ ] Admin upload script
 - [ ] Infrastructure deployment
 - [ ] CI/CD pipeline
 
 ### Future Enhancements
+- Web-based admin upload interface
 - User authentication (Azure AD B2C)
 - Pick history and tracking
 - Automated scoring with game results

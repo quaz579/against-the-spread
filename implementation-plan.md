@@ -4,7 +4,12 @@
 
 This document provides a detailed, step-by-step implementation plan for building the Against The Spread PWA. Each phase includes specific tasks, testing requirements, and validation checkpoints.
 
-**Estimated Total Time**: 40-50 hours over 2-3 weeks
+**MVP Scope (Simplified):**
+- **Admin**: Manually upload weekly lines Excel to blob storage (no web UI)
+- **User**: Web interface to select 6 games and download formatted Excel picks
+- **Goal**: Enable making picks on mobile devices instead of requiring a computer
+
+**Estimated Total Time**: 25-35 hours over 1-2 weeks
 
 ---
 
@@ -36,152 +41,15 @@ node --version         # Should be 18+
 ### 0.1: Create Solution Structure
 **Goal**: Set up the monorepo with all projects
 
-**Tasks**:
-1. Create solution file
-2. Create project folders
-3. Initialize git repository
-4. Create .gitignore
+**Status**: ✅ COMPLETE
 
-**Commands**:
-```bash
-# Navigate to project root
-cd /Users/Ben.Grossman/Code/against-the-spread
+The solution structure has been created with:
+- Core library for shared models
+- Azure Functions for API
+- Blazor WASM for PWA frontend
+- Test project with all dependencies
 
-# Create solution
-dotnet new sln -n AgainstTheSpread
-
-# Create projects
-mkdir -p src
-cd src
-
-# Core library
-dotnet new classlib -n AgainstTheSpread.Core -f net8.0
-dotnet sln ../AgainstTheSpread.sln add AgainstTheSpread.Core/AgainstTheSpread.Core.csproj
-
-# Azure Functions
-dotnet new azurefunc -n AgainstTheSpread.Functions -f net8.0
-dotnet sln ../AgainstTheSpread.sln add AgainstTheSpread.Functions/AgainstTheSpread.Functions.csproj
-
-# Blazor WASM PWA
-dotnet new blazorwasm -n AgainstTheSpread.Web -f net8.0 --pwa
-dotnet sln ../AgainstTheSpread.sln add AgainstTheSpread.Web/AgainstTheSpread.Web.csproj
-
-# Test project
-dotnet new xunit -n AgainstTheSpread.Tests -f net8.0
-dotnet sln ../AgainstTheSpread.sln add AgainstTheSpread.Tests/AgainstTheSpread.Tests.csproj
-
-# Add project references
-cd AgainstTheSpread.Functions
-dotnet add reference ../AgainstTheSpread.Core/AgainstTheSpread.Core.csproj
-
-cd ../AgainstTheSpread.Web
-dotnet add reference ../AgainstTheSpread.Core/AgainstTheSpread.Core.csproj
-
-cd ../AgainstTheSpread.Tests
-dotnet add reference ../AgainstTheSpread.Core/AgainstTheSpread.Core.csproj
-dotnet add reference ../AgainstTheSpread.Functions/AgainstTheSpread.Functions.csproj
-
-cd ../..
-```
-
-**Checkpoint**:
-```bash
-# Build entire solution
-dotnet build
-
-# Verify all projects compile
-dotnet test --no-build
-```
-
-✅ **Success Criteria**: Solution builds without errors, tests run (even if empty)
-
-### 0.2: Add NuGet Dependencies
-**Goal**: Install all required packages
-
-**Core Library Packages**:
-```bash
-cd src/AgainstTheSpread.Core
-dotnet add package EPPlus --version 7.0.0
-dotnet add package Azure.Storage.Blobs --version 12.19.0
-```
-
-**Functions Packages**:
-```bash
-cd ../AgainstTheSpread.Functions
-dotnet add package Microsoft.Azure.Functions.Worker --version 1.21.0
-dotnet add package Microsoft.Azure.Functions.Worker.Sdk --version 1.17.0
-dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Http --version 3.1.0
-dotnet add package Microsoft.Azure.Functions.Worker.Extensions.Storage.Blobs --version 6.2.0
-dotnet add package EPPlus --version 7.0.0
-```
-
-**Web Packages**:
-```bash
-cd ../AgainstTheSpread.Web
-dotnet add package Microsoft.AspNetCore.Components.WebAssembly --version 8.0.0
-```
-
-**Test Packages**:
-```bash
-cd ../AgainstTheSpread.Tests
-dotnet add package Moq --version 4.20.70
-dotnet add package FluentAssertions --version 6.12.0
-dotnet add package bUnit --version 1.28.9
-dotnet add package Microsoft.NET.Test.Sdk --version 17.9.0
-```
-
-**Checkpoint**:
-```bash
-cd /Users/Ben.Grossman/Code/against-the-spread
-dotnet restore
-dotnet build
-```
-
-✅ **Success Criteria**: All packages restore and build successfully
-
-### 0.3: Create Directory Structure
-**Goal**: Set up infrastructure and documentation folders
-
-```bash
-cd /Users/Ben.Grossman/Code/against-the-spread
-
-# Infrastructure
-mkdir -p infrastructure/terraform/environments
-mkdir -p infrastructure/scripts
-
-# GitHub Actions
-mkdir -p .github/workflows
-
-# Documentation (already exists, but ensure structure)
-mkdir -p docs
-```
-
-**Checkpoint**:
-```bash
-ls -la
-tree -L 2 -I 'bin|obj|node_modules'
-```
-
-✅ **Success Criteria**: All folders created, clean directory structure
-
-### 0.4: Create README and Documentation Stubs
-**Goal**: Document the project setup
-
-**Create README.md** (in root):
-- Project description
-- Prerequisites
-- Quick start guide
-- Development commands
-- Contributing guidelines
-
-**Checkpoint**:
-```bash
-git init
-git add .
-git commit -m "Initial project structure and configuration"
-```
-
-✅ **Success Criteria**: Initial commit made, clean git status
+**Checkpoint**: Verified - solution builds and tests run successfully
 
 ---
 
@@ -655,10 +523,12 @@ dotnet test src/AgainstTheSpread.Tests --filter "FullyQualifiedName~BlobStorageI
 
 ---
 
-## Phase 4: Azure Functions API (6-8 hours)
+## Phase 4: Azure Functions API (4-5 hours)
 
 ### 4.1: Setup Function App Project
 **Goal**: Configure Azure Functions with proper DI and settings
+
+**NOTE**: We are NOT building admin endpoints for MVP. Admin uploads files manually via script.
 
 **Update**: `src/AgainstTheSpread.Functions/Program.cs`
 ```csharp
@@ -715,104 +585,56 @@ func start
 
 ✅ **Success Criteria**: Function app starts without errors
 
-### 4.2: Implement Admin Endpoints
-**Goal**: Create endpoints for uploading and managing lines
-
-**Create**: `src/AgainstTheSpread.Functions/Functions/AdminFunctions.cs`
-
-**Endpoints**:
-- `POST /api/admin/lines/{week}` - Upload lines
-- `GET /api/admin/lines` - List all weeks
-
-**Write Tests First**: `src/AgainstTheSpread.Tests/Functions/AdminFunctionsTests.cs`
-```csharp
-using Moq;
-using FluentAssertions;
-using Xunit;
-using Microsoft.Azure.Functions.Worker.Http;
-
-namespace AgainstTheSpread.Tests.Functions;
-
-public class AdminFunctionsTests
-{
-    private readonly Mock<IStorageService> _mockStorage;
-    private readonly Mock<IExcelService> _mockExcel;
-    private readonly AdminFunctions _sut;
-    
-    public AdminFunctionsTests()
-    {
-        _mockStorage = new Mock<IStorageService>();
-        _mockExcel = new Mock<IExcelService>();
-        _sut = new AdminFunctions(_mockStorage.Object, _mockExcel.Object);
-    }
-    
-    [Fact]
-    public async Task UploadLines_WithValidExcel_ReturnsSuccess()
-    {
-        // Arrange
-        // Mock request with Excel file
-        
-        // Act
-        var response = await _sut.UploadLines(mockRequest, 1);
-        
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-}
-```
-
-**Implementation Steps**:
-1. Write failing tests
-2. Implement UploadLines function
-3. Add validation (file type, size)
-4. Parse Excel and store in Blob
-5. Return appropriate responses
-6. Add error handling
-
-**Checkpoint**:
-```bash
-dotnet test src/AgainstTheSpread.Tests --filter "FullyQualifiedName~AdminFunctionsTests"
-
-# Test locally
-curl -X POST http://localhost:7071/api/admin/lines/1 \
-  -F "file=@reference-docs/Week 1 Lines.xlsx"
-```
-
-✅ **Success Criteria**: Tests pass, can upload via cURL
-
-### 4.3: Implement User Endpoints
+### 4.2: Implement User Endpoints ONLY
 **Goal**: Create endpoints for getting lines and submitting picks
 
 **Create**: `src/AgainstTheSpread.Functions/Functions/UserFunctions.cs`
 
 **Endpoints**:
-- `GET /api/lines/{week}` - Get games for week
-- `GET /api/lines/current` - Get current week's games
-- `POST /api/picks` - Submit picks and get Excel
+- `GET /api/weeks` - List available weeks (list blobs)
+- `GET /api/lines/{week}` - Get games for week (read Excel from blob, parse, return JSON)
+- `POST /api/picks` - Submit picks and get Excel (generate in-memory, return file)
 
 **Write Tests First**: `src/AgainstTheSpread.Tests/Functions/UserFunctionsTests.cs`
 
 **Implementation Steps**:
-1. Write failing tests
-2. Implement GetLines function
-3. Implement SubmitPicks function (validate 6 picks)
-4. Generate Excel on-the-fly
-5. Return file as downloadable response
+1. Write failing tests for each endpoint
+2. Implement GetWeeks function (list blobs in storage)
+3. Implement GetLines function (read Excel, parse, return games)
+4. Implement SubmitPicks function (validate 6 picks, generate Excel, return file)
+5. Add error handling and validation
 
 **Checkpoint**:
 ```bash
 dotnet test src/AgainstTheSpread.Tests --filter "FullyQualifiedName~UserFunctionsTests"
 
-# Test locally
+# Test locally (after manually uploading test file to Azurite)
+# Upload test file first:
+az storage blob upload --account-name devstoreaccount1 \
+  --container-name gamefiles --name "lines/week-1.xlsx" \
+  --file reference-docs/Week\ 1\ Lines.xlsx \
+  --connection-string "UseDevelopmentStorage=true"
+
+# Then test endpoints:
+curl http://localhost:7071/api/weeks
 curl http://localhost:7071/api/lines/1
 
 curl -X POST http://localhost:7071/api/picks \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test User","week":1,"picks":["Team1","Team2","Team3","Team4","Team5","Team6"]}' \
+  -d '{"name":"Test User","week":1,"picks":["Boise State","Bowling Green","Rutgers","LA-Monroe","UCF","Delaware"]}' \
   --output picks.xlsx
 ```
 
 ✅ **Success Criteria**: All tests pass, can retrieve lines and download picks via cURL
+
+### 4.3: Skip Admin Endpoints
+**Goal**: Admin functionality is manual for MVP
+
+**Admin will use**:
+- Azure CLI directly
+- Helper script we'll create later: `infrastructure/scripts/upload-lines.sh`
+
+**No admin API endpoints needed for MVP!**
 
 ### 4.4: Add CORS and Error Handling
 **Goal**: Configure CORS for web app and add global error handling
@@ -847,18 +669,19 @@ func start
 
 ---
 
-## Phase 5: Blazor Web App (8-10 hours)
+## Phase 5: Blazor Web App (6-8 hours)
 
 ### 5.1: Setup Blazor Project Structure
 **Goal**: Organize Blazor app with pages and components
+
+**NOTE**: No admin interface needed for MVP - only user interface
 
 **Folder Structure**:
 ```
 src/AgainstTheSpread.Web/
 ├── Pages/
-│   ├── Index.razor
-│   ├── Admin.razor
-│   └── PickGames.razor
+│   ├── Index.razor              # Landing page with week selection
+│   └── PickGames.razor           # Game selection and download
 ├── Components/
 │   ├── GameCard.razor
 │   └── GameList.razor
@@ -911,9 +734,8 @@ namespace AgainstTheSpread.Web.Services;
 
 public interface IApiService
 {
-    Task<WeeklyLines?> GetLinesAsync(int week);
     Task<List<int>> GetAvailableWeeksAsync();
-    Task<bool> UploadLinesAsync(int week, Stream fileStream, string fileName);
+    Task<WeeklyLines?> GetLinesAsync(int week);
     Task<byte[]> SubmitPicksAsync(UserPicks picks);
 }
 ```
@@ -935,53 +757,12 @@ dotnet test src/AgainstTheSpread.Tests --filter "FullyQualifiedName~ApiServiceTe
 
 ✅ **Success Criteria**: API service tests pass with mocked HttpClient
 
-### 5.3: Build Admin Upload Page
-**Goal**: Create UI for uploading weekly lines
+### 5.3: Skip Admin Upload Page
+**Goal**: No admin interface needed for MVP
 
-**Create**: `src/AgainstTheSpread.Web/Pages/Admin.razor`
-
-**Features**:
-- File input for Excel upload
-- Week number input
-- Upload button with loading state
-- Success/error messages
-- List of uploaded weeks
-
-**Write Component Tests**: `src/AgainstTheSpread.Tests/Web/AdminPageTests.cs`
-```csharp
-using Bunit;
-using FluentAssertions;
-using Xunit;
-using AgainstTheSpread.Web.Pages;
-
-public class AdminPageTests : TestContext
-{
-    [Fact]
-    public void Admin_RendersFileUpload()
-    {
-        // Arrange
-        var cut = RenderComponent<Admin>();
-        
-        // Assert
-        cut.Find("input[type='file']").Should().NotBeNull();
-    }
-}
-```
-
-**Checkpoint**:
-```bash
-# Start Functions locally
-cd src/AgainstTheSpread.Functions
-func start &
-
-# Start Web app
-cd ../AgainstTheSpread.Web
-dotnet run
-
-# Test in browser: http://localhost:5000/admin
-```
-
-✅ **Success Criteria**: Can upload Excel file, see success message, file appears in Azurite
+**Admin uploads manually using**:
+- Azure CLI
+- Helper script (will create in Phase 6)
 
 ### 5.4: Build User Pick Games Page
 **Goal**: Create mobile-friendly UI for selecting games
@@ -989,12 +770,14 @@ dotnet run
 **Create**: `src/AgainstTheSpread.Web/Pages/PickGames.razor`
 
 **Features**:
+- Dropdown to select week (from available weeks)
 - Display list of games (Favorite vs Underdog with line)
 - Touch-friendly selection (tap to select/deselect)
 - Show count of selected games (X/6)
 - Disable selecting more than 6
 - Name input field
 - Download button (disabled until 6 selected and name entered)
+- Must generate Excel in EXACT format of "Weekly Picks Example.csv" (but as .xlsx)
 
 **Create**: `src/AgainstTheSpread.Web/Components/GameCard.razor`
 - Display game info
@@ -1105,7 +888,7 @@ python3 -m http.server 8080
 
 ---
 
-## Phase 6: Infrastructure as Code (4-5 hours)
+## Phase 6: Infrastructure as Code (3-4 hours)
 
 ### 6.1: Create Terraform Configuration
 **Goal**: Define all Azure resources in Terraform
@@ -1115,6 +898,8 @@ python3 -m http.server 8080
 **Resources to create**:
 - Resource Group
 - Storage Account (for Blob Storage)
+  - Container: `gamefiles`
+  - Folder structure: `lines/week-N.xlsx`
 - App Service Plan (Consumption)
 - Function App
 - Static Web App
@@ -1237,6 +1022,54 @@ az functionapp config appsettings list \
 ```
 
 ✅ **Success Criteria**: All settings configured correctly
+
+### 6.4: Create Admin Upload Script
+**Goal**: Simple script for admin to upload weekly lines
+
+**Create**: `infrastructure/scripts/upload-lines.sh`
+```bash
+#!/bin/bash
+set -e
+
+# Usage: ./upload-lines.sh <file-path> <week-number> [environment]
+# Example: ./upload-lines.sh ~/Week1.xlsx 1 dev
+
+FILE_PATH=$1
+WEEK=$2
+ENVIRONMENT=${3:-dev}
+
+if [ -z "$FILE_PATH" ] || [ -z "$WEEK" ]; then
+    echo "Usage: ./upload-lines.sh <file-path> <week-number> [environment]"
+    exit 1
+fi
+
+# Get storage account name from Terraform output
+STORAGE_ACCOUNT=$(cd ../terraform && terraform output -raw storage_account_name)
+
+# Upload file to blob storage
+az storage blob upload \
+  --account-name "$STORAGE_ACCOUNT" \
+  --container-name "gamefiles" \
+  --name "lines/week-$WEEK.xlsx" \
+  --file "$FILE_PATH" \
+  --auth-mode login \
+  --overwrite
+
+echo "✅ Successfully uploaded week $WEEK lines to $ENVIRONMENT environment"
+```
+
+**Make executable**:
+```bash
+chmod +x infrastructure/scripts/upload-lines.sh
+```
+
+**Test**:
+```bash
+# Upload Week 1 to dev
+./infrastructure/scripts/upload-lines.sh reference-docs/Week\ 1\ Lines.xlsx 1 dev
+```
+
+✅ **Success Criteria**: Script uploads file to blob storage successfully
 
 ---
 
@@ -1435,30 +1268,36 @@ az ad sp create-for-rbac \
 **Test Scenarios**:
 
 1. **Admin Upload Flow**:
-   - Navigate to admin page
-   - Upload Week 1 Lines.xlsx
-   - Verify success message
-   - Check Blob Storage for files
+   - Run upload script with Week 1 Lines.xlsx
+   - Verify file appears in blob storage
+   - Verify API can read and parse it
 
 2. **User Pick Flow (Desktop)**:
-   - Navigate to pick games page
+   - Navigate to app
+   - Select week from dropdown
    - Verify games load
    - Select 6 games
    - Enter name
    - Download picks
-   - Open Excel and verify format
+   - Open Excel and verify format EXACTLY matches "Weekly Picks Example"
 
 3. **User Pick Flow (Mobile)**:
    - Open app on iPhone/Android
    - Install PWA
    - Complete pick flow
    - Download and open Excel
+   - Verify format is correct
 
-4. **Error Handling**:
-   - Try uploading invalid file
-   - Try selecting 7 games
+4. **Validation**:
+   - Try to select fewer/more than 6 games
    - Try submitting without name
    - Test with no internet (PWA offline)
+
+5. **Excel Format Validation** (CRITICAL):
+   - Downloaded Excel must have exact structure as "Weekly Picks Example.csv"
+   - Columns: Name, Pick 1, Pick 2, Pick 3, Pick 4, Pick 5, Pick 6
+   - Row 3 contains data (rows 1-2 are headers/blank)
+   - Team names must match exactly as they appear in the lines
 
 **Create Test Checklist**: `docs/testing-checklist.md`
 
