@@ -54,9 +54,9 @@ public class LinesFunction
             if (lines == null)
             {
                 var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await notFoundResponse.WriteAsJsonAsync(new 
-                { 
-                    error = $"Lines not found for week {week} of {year}" 
+                await notFoundResponse.WriteAsJsonAsync(new
+                {
+                    error = $"Lines not found for week {week} of {year}"
                 });
                 return notFoundResponse;
             }

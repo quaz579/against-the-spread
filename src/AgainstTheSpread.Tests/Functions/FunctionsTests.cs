@@ -36,7 +36,7 @@ public class FunctionsTests
         // Arrange
         var mockLogger = new Mock<ILogger<LinesFunction>>();
         var mockStorage = new Mock<IStorageService>();
-        
+
         var function = new LinesFunction(mockLogger.Object, mockStorage.Object);
 
         // Act & Assert - basic construction test

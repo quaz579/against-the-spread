@@ -36,8 +36,8 @@ public class WeeksFunction
             // Get year from query string, default to current year
             var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
             var yearString = query["year"];
-            var year = string.IsNullOrEmpty(yearString) 
-                ? DateTime.UtcNow.Year 
+            var year = string.IsNullOrEmpty(yearString)
+                ? DateTime.UtcNow.Year
                 : int.Parse(yearString);
 
             var weeks = await _storageService.GetAvailableWeeksAsync(year);

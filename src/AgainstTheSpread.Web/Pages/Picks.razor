@@ -32,11 +32,11 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h3 class="card-title">Select Week and Enter Your Name</h3>
-                
+
                 <div class="mb-3">
                     <label for="userName" class="form-label">Your Name</label>
-                    <input type="text" class="form-control" id="userName" @bind="userName" 
-                           placeholder="Enter your full name" />
+                    <input type="text" class="form-control" id="userName" @bind="userName"
+                        placeholder="Enter your full name" />
                 </div>
 
                 <div class="mb-3">
@@ -59,8 +59,8 @@
                     </select>
                 </div>
 
-                <button class="btn btn-primary btn-lg" @onclick="LoadGames" 
-                        disabled="@(string.IsNullOrWhiteSpace(userName) || selectedWeek == 0)">
+                <button class="btn btn-primary btn-lg" @onclick="LoadGames"
+                    disabled="@(string.IsNullOrWhiteSpace(userName) || selectedWeek == 0)">
                     Continue to Picks
                 </button>
             </div>
@@ -98,21 +98,27 @@
                             <small class="text-muted">@gameDate</small>
                             <div class="d-grid gap-2 mt-2">
                                 <button class="btn @(isFavoriteSelected ? "btn-success" : "btn-outline-primary")"
-                                        @onclick="() => TogglePick(game.Favorite)"
-                                        disabled="@(!isFavoriteSelected && selectedPicks.Count >= 6)">
+                                    @onclick="() => TogglePick(game.Favorite)"
+                                    disabled="@(!isFavoriteSelected && selectedPicks.Count >= 6)">
                                     @game.FavoriteDisplay
-                                    @if (isFavoriteSelected) { <span>✓</span> }
+                                    @if (isFavoriteSelected)
+                                    {
+                                        <span>✓</span>
+                                    }
                                 </button>
-                                
+
                                 <div class="text-center">
                                     <small class="text-muted">@game.VsAt</small>
                                 </div>
-                                
+
                                 <button class="btn @(isUnderdogSelected ? "btn-success" : "btn-outline-secondary")"
-                                        @onclick="() => TogglePick(game.Underdog)"
-                                        disabled="@(!isUnderdogSelected && selectedPicks.Count >= 6)">
+                                    @onclick="() => TogglePick(game.Underdog)"
+                                    disabled="@(!isUnderdogSelected && selectedPicks.Count >= 6)">
                                     @game.UnderdogDisplay
-                                    @if (isUnderdogSelected) { <span>✓</span> }
+                                    @if (isUnderdogSelected)
+                                    {
+                                        <span>✓</span>
+                                    }
                                 </button>
                             </div>
                         </div>
@@ -164,11 +170,11 @@
     {
         isLoading = true;
         errorMessage = null;
-        
+
         try
         {
             availableWeeks = await ApiService.GetAvailableWeeksAsync(selectedYear);
-            
+
             if (availableWeeks.Count == 0)
             {
                 errorMessage = $"No weeks available for {selectedYear}. Please check back later or contact your administrator.";
@@ -195,7 +201,7 @@
         try
         {
             currentWeekLines = await ApiService.GetLinesAsync(selectedWeek, selectedYear);
-            
+
             if (currentWeekLines == null)
             {
                 errorMessage = $"Could not load games for Week {selectedWeek}. Please try again.";
@@ -260,7 +266,7 @@
                 // Download file using JavaScript interop
                 var fileName = $"{userName.Replace(" ", "_")}_Week_{selectedWeek}_Picks.xlsx";
                 await JSRuntime.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(excelBytes));
-                
+
                 // Show success message and reset
                 await JSRuntime.InvokeVoidAsync("alert", "✅ Your picks have been downloaded successfully!");
                 GoBack();

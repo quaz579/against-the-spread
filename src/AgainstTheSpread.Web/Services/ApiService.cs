@@ -54,7 +54,7 @@ public class ApiService
         try
         {
             var response = await _httpClient.PostAsJsonAsync("api/picks", userPicks);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadAsByteArrayAsync();
