@@ -1,24 +1,25 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Services;
-using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-[assembly: FunctionsStartup(typeof(AgainstTheSpread.Functions.Startup))]
-
-namespace AgainstTheSpread.Functions;
-
-public class Startup : FunctionsStartup
-{
-    public override void Configure(IFunctionsHostBuilder builder)
+var host = new HostBuilder()
+    .ConfigureFunctionsWebApplication()
+    .ConfigureServices(services =>
     {
+        services.AddApplicationInsightsTelemetryWorkerService();
+
         // Register application services
-        builder.Services.AddSingleton<IExcelService, ExcelService>();
-        builder.Services.AddSingleton<IStorageService>(sp =>
+        services.AddSingleton<IExcelService, ExcelService>();
+        services.AddSingleton<IStorageService>(sp =>
         {
             var connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage")
                 ?? "UseDevelopmentStorage=true";
             var excelService = sp.GetRequiredService<IExcelService>();
             return new StorageService(connectionString, excelService);
         });
-    }
-}
+    })
+    .Build();
+
+host.Run();

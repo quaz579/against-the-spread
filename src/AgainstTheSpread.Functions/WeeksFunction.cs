@@ -1,9 +1,8 @@
 using AgainstTheSpread.Core.Interfaces;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace AgainstTheSpread.Functions;
 
@@ -25,9 +24,9 @@ public class WeeksFunction
     /// GET /api/weeks?year={year}
     /// Returns list of week numbers that have lines available
     /// </summary>
-    [FunctionName("GetWeeks")]
-    public async Task<IActionResult> GetWeeks(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "weeks")] HttpRequest req)
+    [Function("GetWeeks")]
+    public async Task<HttpResponseData> GetWeeks(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "weeks")] HttpRequestData req)
     {
         _logger.LogInformation("Processing GetWeeks request");
 
@@ -41,19 +40,20 @@ public class WeeksFunction
 
             var weeks = await _storageService.GetAvailableWeeksAsync(year);
 
-            return new OkObjectResult(new
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
             {
                 year,
                 weeks
             });
+            return response;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting available weeks");
-            return new ObjectResult(new { error = "Failed to retrieve available weeks" })
-            {
-                StatusCode = 500
-            };
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteAsJsonAsync(new { error = "Failed to retrieve available weeks" });
+            return response;
         }
     }
 }

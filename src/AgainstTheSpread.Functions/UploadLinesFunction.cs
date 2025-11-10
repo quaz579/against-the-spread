@@ -1,9 +1,8 @@
 using AgainstTheSpread.Core.Interfaces;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace AgainstTheSpread.Functions;
 
@@ -30,9 +29,9 @@ public class UploadLinesFunction
     /// Upload weekly lines file
     /// POST /api/upload-lines
     /// </summary>
-    [FunctionName("UploadLines")]
-    public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "upload-lines")] HttpRequest req)
+    [Function("UploadLines")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "upload-lines")] HttpRequestData req)
     {
         _logger.LogInformation("Processing upload request");
 
@@ -41,33 +40,41 @@ public class UploadLinesFunction
             // Get week and year from query parameters
             if (!int.TryParse(req.Query["week"], out int week))
             {
-                return new BadRequestObjectResult(new { error = "Week parameter is required" });
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteAsJsonAsync(new { error = "Week parameter is required" });
+                return badResponse;
             }
 
             if (!int.TryParse(req.Query["year"], out int year))
             {
-                return new BadRequestObjectResult(new { error = "Year parameter is required" });
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteAsJsonAsync(new { error = "Year parameter is required" });
+                return badResponse;
             }
 
-            // Get the uploaded file
-            var formCollection = await req.ReadFormAsync();
-            var file = formCollection.Files.GetFile("file");
+            // Read the file from request body (expecting raw file upload)
+            using var stream = new MemoryStream();
+            await req.Body.CopyToAsync(stream);
+            stream.Position = 0;
 
-            if (file == null || file.Length == 0)
+            if (stream.Length == 0)
             {
-                return new BadRequestObjectResult(new { error = "No file uploaded" });
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteAsJsonAsync(new { error = "No file uploaded" });
+                return badResponse;
             }
 
             _logger.LogInformation("Uploading week {Week} for year {Year}, file size: {Size} bytes",
-                week, year, file.Length);
+                week, year, stream.Length);
 
             // Read and validate the Excel file
-            using var stream = file.OpenReadStream();
             var weeklyLines = await _excelService.ParseWeeklyLinesAsync(stream, week, year);
 
             if (weeklyLines.Games.Count == 0)
             {
-                return new BadRequestObjectResult(new { error = "No games found in the uploaded file" });
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteAsJsonAsync(new { error = "No games found in the uploaded file" });
+                return badResponse;
             }
 
             // Upload to blob storage
@@ -77,7 +84,8 @@ public class UploadLinesFunction
             _logger.LogInformation("Successfully uploaded {Count} games for week {Week}",
                 weeklyLines.Games.Count, week);
 
-            return new OkObjectResult(new
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
             {
                 success = true,
                 week = week,
@@ -85,11 +93,14 @@ public class UploadLinesFunction
                 gamesCount = weeklyLines.Games.Count,
                 message = $"Successfully uploaded {weeklyLines.Games.Count} games for Week {week}"
             });
+            return response;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading lines");
-            return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteAsJsonAsync(new { error = "Failed to upload lines" });
+            return errorResponse;
         }
     }
 }

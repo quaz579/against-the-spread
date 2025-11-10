@@ -1,9 +1,8 @@
 using AgainstTheSpread.Core.Interfaces;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace AgainstTheSpread.Functions;
 
@@ -25,9 +24,9 @@ public class LinesFunction
     /// GET /api/lines/{week}?year={year}
     /// Returns all games with lines for a specific week
     /// </summary>
-    [FunctionName("GetLines")]
-    public async Task<IActionResult> GetLines(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "lines/{week}")] HttpRequest req,
+    [Function("GetLines")]
+    public async Task<HttpResponseData> GetLines(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "lines/{week}")] HttpRequestData req,
         int week)
     {
         _logger.LogInformation("Processing GetLines request for week {Week}", week);
@@ -37,7 +36,9 @@ public class LinesFunction
             // Validate week number
             if (week < 1 || week > 14)
             {
-                return new BadRequestObjectResult(new { error = "Week must be between 1 and 14" });
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteAsJsonAsync(new { error = "Week must be between 1 and 14" });
+                return badResponse;
             }
 
             // Get year from query string, default to current year
@@ -50,21 +51,24 @@ public class LinesFunction
 
             if (lines == null)
             {
-                return new NotFoundObjectResult(new
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteAsJsonAsync(new
                 {
                     error = $"Lines not found for week {week} of {year}"
                 });
+                return notFoundResponse;
             }
 
-            return new OkObjectResult(lines);
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(lines);
+            return response;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting lines for week {Week}", week);
-            return new ObjectResult(new { error = "Failed to retrieve lines" })
-            {
-                StatusCode = 500
-            };
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteAsJsonAsync(new { error = "Failed to retrieve lines" });
+            return errorResponse;
         }
     }
 }

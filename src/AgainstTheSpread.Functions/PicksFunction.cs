@@ -1,10 +1,9 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Text.Json;
 
 namespace AgainstTheSpread.Functions;
@@ -27,9 +26,9 @@ public class PicksFunction
     /// POST /api/picks
     /// Accepts user picks and returns Excel file in exact format
     /// </summary>
-    [FunctionName("SubmitPicks")]
-    public async Task<IActionResult> SubmitPicks(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "picks")] HttpRequest req)
+    [Function("SubmitPicks")]
+    public async Task<HttpResponseData> SubmitPicks(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "picks")] HttpRequestData req)
     {
         _logger.LogInformation("Processing SubmitPicks request");
 
@@ -44,7 +43,9 @@ public class PicksFunction
 
             if (userPicks == null)
             {
-                return new BadRequestObjectResult(new { error = "Invalid request body" });
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteAsJsonAsync(new { error = "Invalid request body" });
+                return badResponse;
             }
 
             // Set submission time
@@ -54,30 +55,35 @@ public class PicksFunction
             if (!userPicks.IsValid())
             {
                 var validationError = userPicks.GetValidationError();
-                return new BadRequestObjectResult(new { error = validationError });
+                var validationResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await validationResponse.WriteAsJsonAsync(new { error = validationError });
+                return validationResponse;
             }
 
             // Generate Excel file
             var excelBytes = await _excelService.GeneratePicksExcelAsync(userPicks);
 
             // Return Excel file
-            return new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            {
-                FileDownloadName = $"{userPicks.Name.Replace(" ", "_")}_Week_{userPicks.Week}_Picks.xlsx"
-            };
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.Headers.Add("Content-Disposition", 
+                $"attachment; filename=\"{userPicks.Name.Replace(" ", "_")}_Week_{userPicks.Week}_Picks.xlsx\"");
+            await response.Body.WriteAsync(excelBytes);
+            return response;
         }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Validation error in SubmitPicks");
-            return new BadRequestObjectResult(new { error = ex.Message });
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteAsJsonAsync(new { error = ex.Message });
+            return badResponse;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing picks submission");
-            return new ObjectResult(new { error = "Failed to generate picks file" })
-            {
-                StatusCode = 500
-            };
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteAsJsonAsync(new { error = "Failed to generate picks file" });
+            return errorResponse;
         }
     }
 }
