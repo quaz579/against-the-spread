@@ -1,9 +1,10 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using System.Net;
 using System.Text.Json;
 
 namespace AgainstTheSpread.Functions;
@@ -26,10 +27,9 @@ public class PicksFunction
     /// POST /api/picks
     /// Accepts user picks and returns Excel file in exact format
     /// </summary>
-    [Function("SubmitPicks")]
-    public async Task<HttpResponseData> SubmitPicks(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "picks")] HttpRequestData req,
-        FunctionContext executionContext)
+    [FunctionName("SubmitPicks")]
+    public async Task<IActionResult> SubmitPicks(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "picks")] HttpRequest req)
     {
         _logger.LogInformation("Processing SubmitPicks request");
 
@@ -44,9 +44,7 @@ public class PicksFunction
 
             if (userPicks == null)
             {
-                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badResponse.WriteAsJsonAsync(new { error = "Invalid request body" });
-                return badResponse;
+                return new BadRequestObjectResult(new { error = "Invalid request body" });
             }
 
             // Set submission time
@@ -56,36 +54,30 @@ public class PicksFunction
             if (!userPicks.IsValid())
             {
                 var validationError = userPicks.GetValidationError();
-                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badResponse.WriteAsJsonAsync(new { error = validationError });
-                return badResponse;
+                return new BadRequestObjectResult(new { error = validationError });
             }
 
             // Generate Excel file
             var excelBytes = await _excelService.GeneratePicksExcelAsync(userPicks);
 
             // Return Excel file
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            response.Headers.Add("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.Headers.Add("Content-Disposition",
-                $"attachment; filename=\"{userPicks.Name.Replace(" ", "_")}_Week_{userPicks.Week}_Picks.xlsx\"");
-
-            await response.Body.WriteAsync(excelBytes);
-            return response;
+            return new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            {
+                FileDownloadName = $"{userPicks.Name.Replace(" ", "_")}_Week_{userPicks.Week}_Picks.xlsx"
+            };
         }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Validation error in SubmitPicks");
-            var response = req.CreateResponse(HttpStatusCode.BadRequest);
-            await response.WriteAsJsonAsync(new { error = ex.Message });
-            return response;
+            return new BadRequestObjectResult(new { error = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing picks submission");
-            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteAsJsonAsync(new { error = "Failed to generate picks file" });
-            return response;
+            return new ObjectResult(new { error = "Failed to generate picks file" })
+            {
+                StatusCode = 500
+            };
         }
     }
 }

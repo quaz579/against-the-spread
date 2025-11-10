@@ -1,8 +1,9 @@
 using AgainstTheSpread.Core.Interfaces;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using System.Net;
 
 namespace AgainstTheSpread.Functions;
 
@@ -24,11 +25,10 @@ public class LinesFunction
     /// GET /api/lines/{week}?year={year}
     /// Returns all games with lines for a specific week
     /// </summary>
-    [Function("GetLines")]
-    public async Task<HttpResponseData> GetLines(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "lines/{week}")] HttpRequestData req,
-        int week,
-        FunctionContext executionContext)
+    [FunctionName("GetLines")]
+    public async Task<IActionResult> GetLines(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "lines/{week}")] HttpRequest req,
+        int week)
     {
         _logger.LogInformation("Processing GetLines request for week {Week}", week);
 
@@ -37,40 +37,34 @@ public class LinesFunction
             // Validate week number
             if (week < 1 || week > 14)
             {
-                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badResponse.WriteAsJsonAsync(new { error = "Week must be between 1 and 14" });
-                return badResponse;
+                return new BadRequestObjectResult(new { error = "Week must be between 1 and 14" });
             }
 
             // Get year from query string, default to current year
-            var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
-            var yearString = query["year"];
+            var yearString = req.Query["year"];
             var year = string.IsNullOrEmpty(yearString)
                 ? DateTime.UtcNow.Year
-                : int.Parse(yearString);
+                : int.Parse(yearString!);
 
             var lines = await _storageService.GetLinesAsync(week, year);
 
             if (lines == null)
             {
-                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await notFoundResponse.WriteAsJsonAsync(new
+                return new NotFoundObjectResult(new
                 {
                     error = $"Lines not found for week {week} of {year}"
                 });
-                return notFoundResponse;
             }
 
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(lines);
-            return response;
+            return new OkObjectResult(lines);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting lines for week {Week}", week);
-            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteAsJsonAsync(new { error = "Failed to retrieve lines" });
-            return response;
+            return new ObjectResult(new { error = "Failed to retrieve lines" })
+            {
+                StatusCode = 500
+            };
         }
     }
 }

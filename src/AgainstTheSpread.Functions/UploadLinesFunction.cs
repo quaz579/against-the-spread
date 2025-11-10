@@ -1,7 +1,8 @@
 using AgainstTheSpread.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
 namespace AgainstTheSpread.Functions;
@@ -29,7 +30,7 @@ public class UploadLinesFunction
     /// Upload weekly lines file
     /// POST /api/upload-lines
     /// </summary>
-    [Function("UploadLines")]
+    [FunctionName("UploadLines")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "upload-lines")] HttpRequest req)
     {
