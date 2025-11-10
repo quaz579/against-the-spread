@@ -10,7 +10,8 @@
       "route": "/admin/*",
       "allowedRoles": [
         "authenticated",
-        "administrator"
+        "administrator",
+        "anonymous"
       ]
     }
   ],
