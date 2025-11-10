@@ -102,7 +102,12 @@ public class ExcelService : IExcelService
 
         if (headerRow == 0 || favoriteCol == 0 || lineCol == 0 || underdogCol == 0)
         {
-            throw new FormatException("Could not find header row with required columns (Favorite, Line, Under Dog).");
+            var missing = new List<string>();
+            if (headerRow == 0) missing.Add("header row");
+            if (favoriteCol == 0) missing.Add("Favorite");
+            if (lineCol == 0) missing.Add("Line");
+            if (underdogCol == 0) missing.Add("Under Dog");
+            throw new FormatException($"Could not find required columns: {string.Join(", ", missing)}. Found header at row {headerRow}, Favorite at col {favoriteCol}, Line at col {lineCol}, Under Dog at col {underdogCol}");
         }
 
         // Find the date column (usually before Favorite column)
