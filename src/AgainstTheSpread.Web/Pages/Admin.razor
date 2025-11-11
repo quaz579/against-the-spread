@@ -160,12 +160,19 @@
     {
         try
         {
-            // Call the /.auth/me endpoint to get user info
-            var response = await Http.GetAsync("/.auth/me");
+            // Create a new HttpClient with the host base address for auth endpoints
+            using var authClient = new HttpClient { BaseAddress = new Uri(Navigation.BaseUri) };
+
+            var response = await authClient.GetAsync(".auth/me");
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                var authInfo = JsonSerializer.Deserialize<AuthMeResponse>(json);
+                Console.WriteLine($"Auth response: {json}"); // Debug log
+
+                var authInfo = JsonSerializer.Deserialize<AuthMeResponse>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
 
                 if (authInfo?.ClientPrincipal != null)
                 {
@@ -176,6 +183,14 @@
                     // The backend will do the actual email validation
                     isAuthorized = true;
                 }
+                else
+                {
+                    Console.WriteLine("No client principal in response");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Auth check failed: {response.StatusCode}");
             }
         }
         catch (Exception ex)

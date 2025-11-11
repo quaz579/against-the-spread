@@ -14,7 +14,11 @@
           },
           "login": {
             "nameClaimType": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-            "scopes": ["openid", "profile", "email"]
+            "scopes": [
+              "openid",
+              "profile",
+              "email"
+            ]
           }
         }
       }
@@ -23,7 +27,9 @@
   "routes": [
     {
       "route": "/api/upload-lines",
-      "allowedRoles": ["authenticated"]
+      "allowedRoles": [
+        "authenticated"
+      ]
     }
   ],
   "responseOverrides": {
@@ -34,6 +40,11 @@
   },
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/images/*.{png,jpg,gif}", "/css/*", "/.auth/*", "/api/*"]
+    "exclude": [
+      "/images/*.{png,jpg,gif}",
+      "/css/*",
+      "/.auth/*",
+      "/api/*"
+    ]
   }
 }
