@@ -8,8 +8,8 @@ self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
-const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/ ];
-const offlineAssetsExclude = [ /^service-worker\.js$/ ];
+const offlineAssetsInclude = [/\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/];
+const offlineAssetsExclude = [/^service-worker\.js$/];
 
 // Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
 const base = "/";
@@ -40,6 +40,28 @@ async function onActivate(event) {
 async function onFetch(event) {
     let cachedResponse = null;
     if (event.request.method === 'GET') {
+        // Skip caching for authentication and API endpoints
+        const url = new URL(event.request.url);
+        if (url.pathname.startsWith('/.auth/') ||
+            url.pathname.startsWith('/api/') ||
+            url.pathname === '/admin' ||
+            url.pathname === '/index.html') {
+            // Network-first for auth, API, and admin pages
+            try {
+                return await fetch(event.request);
+            } catch (error) {
+                // Only fall back to cache for static assets, not auth/API
+                if (!url.pathname.startsWith('/.auth/') && !url.pathname.startsWith('/api/')) {
+                    const cache = await caches.open(cacheName);
+                    cachedResponse = await cache.match(event.request);
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+                }
+                throw error;
+            }
+        }
+
         // For all navigation requests, try to serve index.html from cache,
         // unless that request is for an offline resource.
         // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
