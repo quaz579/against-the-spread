@@ -71,11 +71,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: web-dist
-          path: web-dist
+          path: build/web
       - uses: actions/download-artifact@v4
         with:
           name: api-dist
-          path: api-dist
+          path: build/api
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -90,8 +90,8 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_RIVER_0E2F38010 }}
           action: "upload"
-          app_location: "web-dist/build/web/wwwroot"
-          api_location: "api-dist/build/api"
+          app_location: "build/web/wwwroot"
+          api_location: "build/api"
           skip_app_build: true
           skip_api_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
@@ -109,11 +109,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: web-dist
-          path: web-dist
+          path: build/web
       - uses: actions/download-artifact@v4
         with:
           name: api-dist
-          path: api-dist
+          path: build/api
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -128,8 +128,8 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_RIVER_0E2F38010 }}
           action: "upload"
-          app_location: "web-dist/build/web/wwwroot"
-          api_location: "api-dist/build/api"
+          app_location: "build/web/wwwroot"
+          api_location: "build/api"
           skip_app_build: true
           skip_api_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
