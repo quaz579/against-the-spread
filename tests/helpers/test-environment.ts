@@ -36,38 +36,45 @@ export class TestEnvironment {
 
     this.azuriteProcess = spawn('npx', [
       'azurite',
-      '--silent',
       '--location', azuriteDir,
-      '--blobPort', '10000'
+      '--blobPort', '10000',
+      '--blobHost', '127.0.0.1'
     ]);
 
-    // Attach output and error handlers for Azurite process
-    this.azuriteProcess.stdout?.on('data', (data) => {
-      console.log(`[Azurite] ${data.toString().trim()}`);
-    });
-    this.azuriteProcess.stderr?.on('data', (data) => {
-      console.error(`[Azurite Error] ${data.toString().trim()}`);
-    });
-    this.azuriteProcess.on('error', (error) => {
-      console.error('Azurite process error:', error);
-    });
     if (!this.azuriteProcess) {
       throw new Error('Failed to start Azurite');
     }
 
-    // Attach output and error handlers
-    this.azuriteProcess.stdout?.on('data', (data) => {
-      console.log(`[Azurite] ${data.toString().trim()}`);
-    });
-    this.azuriteProcess.stderr?.on('data', (data) => {
-      console.error(`[Azurite Error] ${data.toString().trim()}`);
-    });
-    this.azuriteProcess.on('error', (error) => {
-      console.error('Azurite process error:', error);
+    // Track when Azurite is ready
+    let azuriteReady = false;
+    const azuriteReadyPromise = new Promise<void>((resolve) => {
+      // Attach output and error handlers for Azurite process
+      this.azuriteProcess!.stdout?.on('data', (data) => {
+        const output = data.toString().trim();
+        console.log(`[Azurite] ${output}`);
+        // Azurite outputs "Azurite Blob service is successfully listening" when ready
+        if (output.includes('successfully listening') || output.includes('Blob service is successfully')) {
+          azuriteReady = true;
+          resolve();
+        }
+      });
+      this.azuriteProcess!.stderr?.on('data', (data) => {
+        console.error(`[Azurite Error] ${data.toString().trim()}`);
+      });
+      this.azuriteProcess!.on('error', (error) => {
+        console.error('Azurite process error:', error);
+      });
     });
 
-    // Wait for Azurite to be ready
-    await this.waitForService('http://127.0.0.1:10000/devstoreaccount1', 30000);
+    // Wait for Azurite to be ready (either from output or timeout)
+    await Promise.race([
+      azuriteReadyPromise,
+      new Promise(resolve => setTimeout(resolve, 10000)) // 10 second max wait
+    ]);
+
+    // Give Azurite a moment to fully initialize
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     console.log('Azurite started successfully');
   }
 
@@ -222,19 +229,6 @@ export class TestEnvironment {
   private async runCommand(command: string, args: string[], cwd: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const process = spawn(command, args, { cwd });
-      let stdout = '';
-      let stderr = '';
-
-      if (process.stdout) {
-        process.stdout.on('data', (data) => {
-          stdout += data.toString();
-        });
-      }
-      if (process.stderr) {
-        process.stderr.on('data', (data) => {
-          stderr += data.toString();
-        });
-      }
       let stdout = '';
       let stderr = '';
 
