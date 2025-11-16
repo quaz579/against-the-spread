@@ -122,6 +122,11 @@ test-output/
 *.xlsx
 !reference-docs/*.xlsx
 
+## Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
 ## Backup files
 *.bak
 *.backup
