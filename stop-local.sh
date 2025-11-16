@@ -24,9 +24,9 @@ else
 fi
 
 # Stop Web App
-if lsof -Pi :5000 -sTCP:LISTEN -t >/dev/null ; then
+if lsof -Pi :5158 -sTCP:LISTEN -t >/dev/null ; then
     echo "🌐 Stopping Blazor Web App..."
-    kill $(lsof -t -i:5000)
+    kill $(lsof -t -i:5158)
     echo "✅ Blazor Web App stopped"
 else
     echo "ℹ️  Blazor Web App not running"
