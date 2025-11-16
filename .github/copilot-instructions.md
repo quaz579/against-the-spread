@@ -7,7 +7,7 @@ This is a Progressive Web Application (PWA) for managing a weekly college footba
 - **Backend**: Azure Functions (C# .NET 8)
 - **Storage**: Azure Blob Storage
 - **Infrastructure**: Terraform
-- **Testing**: xUnit, bUnit, Moq, FluentAssertions
+- **Testing**: xUnit, bUnit, Moq, FluentAssertions, Playwright
 
 ## Development Guidelines
 
@@ -57,6 +57,40 @@ public void MethodName_Scenario_ExpectedBehavior()
 - Functions: >80%
 - Web Components: >70%
 
+### End-to-End Testing with Playwright
+
+**Playwright smoke tests validate the complete user flow:**
+- Located in `tests/` directory with TypeScript
+- Tests the full stack: Azurite → Functions → Blazor Web App
+- Automatically uploads test data and validates Excel downloads
+- Runs on every PR via GitHub Actions
+
+**Running Playwright tests:**
+```bash
+# Install dependencies (first time only)
+cd tests
+npm install
+npx playwright install chromium
+
+# Run all tests
+npm test
+
+# Run with visible browser
+npm run test:headed
+
+# Debug tests interactively
+npm run test:debug
+
+# View test report
+npm run test:report
+```
+
+**Test requirements:**
+- Services must be running (or tests will start them automatically)
+- Ports 7071 (Functions), 5158 (Web), 10000 (Azurite) must be available
+- Tests validate Excel format matches `reference-docs/Weekly Picks Example.xlsx`
+- See `tests/README.md` for detailed documentation
+
 ### Build & Validation
 
 **After each meaningful change, run:**
@@ -64,8 +98,11 @@ public void MethodName_Scenario_ExpectedBehavior()
 # Compile and check for errors
 dotnet build
 
-# Run all tests
+# Run all unit tests
 dotnet test
+
+# Run end-to-end tests (validates full user flow)
+cd tests && npm test
 
 # For local testing with Azure Functions
 cd src/AgainstTheSpread.Functions && func start
@@ -96,6 +133,11 @@ src/
     ├── Services/               # Service tests
     ├── Functions/              # API tests
     └── Web/                    # Component tests
+
+tests/                           # E2E Playwright tests
+├── specs/                      # Test specifications
+├── helpers/                    # Test utilities
+└── playwright.config.ts        # Playwright configuration
 ```
 
 ### Dependencies
@@ -227,6 +269,7 @@ fix(web): correct game selection validation
 - Includes error handling
 - Mobile-friendly (for UI changes)
 - Security considerations addressed
+- Playwright smoke tests pass (for user-facing changes)
 
 ### MVP Scope Focus
 
@@ -251,6 +294,7 @@ fix(web): correct game selection validation
 - `.agents.md` - Comprehensive agent guide
 - `implementation-plan.md` - Detailed implementation steps
 - `TESTING.md` - Complete testing guide
+- `tests/README.md` - Playwright E2E testing guide
 
 ### Common Pitfalls to Avoid
 
