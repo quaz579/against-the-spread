@@ -86,6 +86,21 @@ export class TestEnvironment {
     
     const functionsPath = path.join(this.repoRoot, 'src', 'AgainstTheSpread.Functions');
 
+    // Create local.settings.json if it doesn't exist
+    const localSettingsPath = path.join(functionsPath, 'local.settings.json');
+    if (!fs.existsSync(localSettingsPath)) {
+      const localSettings = {
+        IsEncrypted: false,
+        Values: {
+          AzureWebJobsStorage: this.azuriteConnectionString,
+          AZURE_STORAGE_CONNECTION_STRING: this.azuriteConnectionString,
+          FUNCTIONS_WORKER_RUNTIME: "dotnet-isolated"
+        }
+      };
+      fs.writeFileSync(localSettingsPath, JSON.stringify(localSettings, null, 2));
+      console.log('Created local.settings.json for Functions');
+    }
+
     // Build first
     await this.runCommand('dotnet', ['build'], functionsPath);
 
@@ -95,7 +110,8 @@ export class TestEnvironment {
       env: {
         ...process.env,
         AzureWebJobsStorage: this.azuriteConnectionString,
-        AZURE_STORAGE_CONNECTION_STRING: this.azuriteConnectionString
+        AZURE_STORAGE_CONNECTION_STRING: this.azuriteConnectionString,
+        FUNCTIONS_WORKER_RUNTIME: 'dotnet-isolated'
       }
     });
 

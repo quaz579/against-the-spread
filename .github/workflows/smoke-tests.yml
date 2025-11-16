@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: [ main, dev ]
     types: [opened, synchronize, reopened]
+  push:
+    branches: [ copilot/add-playwright-smoke-tests ]
 
 jobs:
   smoke-tests:
