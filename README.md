@@ -49,10 +49,11 @@ A Progressive Web Application (PWA) for managing a weekly college football pick'
 
 **Get started in 5 minutes with zero local setup!**
 
-We provide a fully configured development container that includes all tools, dependencies, and services pre-installed. This is the fastest way to start developing and testing:
+We provide multiple ways to work with this repository using GitHub Copilot:
 
-- ✅ **GitHub Codespaces**: Cloud-based, no local installation needed
-- ✅ **VS Code Dev Container**: Docker-based local development
+- ✅ **GitHub Copilot Coding Agent**: Automatically configured via `.github/workflows/copilot-setup-steps.yml` - when the agent works on code, it gets a pre-configured environment with all tools
+- ✅ **GitHub Codespaces**: Cloud-based development environment, no local installation needed
+- ✅ **VS Code Dev Container**: Docker-based local development with all tools pre-installed
 - ✅ **Pre-configured**: .NET 8, Node.js, Azure Functions, Azurite, Playwright
 - ✅ **No Firewall Issues**: All services run locally/in-cloud
 - ✅ **One-Click Start**: `./start-local.sh` starts everything

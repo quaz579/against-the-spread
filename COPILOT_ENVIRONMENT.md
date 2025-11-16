@@ -2,6 +2,18 @@
 
 This guide helps you quickly set up a complete development environment for the Against The Spread application using GitHub Copilot.
 
+## GitHub Copilot Coding Agent Environment
+
+**For GitHub Copilot coding agent users:** The repository includes a pre-configured environment setup at `.github/workflows/copilot-setup-steps.yml`. This workflow automatically prepares the agent's environment with:
+- .NET 8 SDK
+- Node.js 20
+- Azure Functions Core Tools v4
+- Azurite (Azure Storage Emulator)
+- Playwright with Chromium browser
+- All project dependencies
+
+When GitHub Copilot coding agent works on this repository, it will automatically use this configuration to set up its ephemeral development environment. No additional setup is required - the agent will have everything it needs to build, test, and run the application locally with Azurite.
+
 ## Option 1: GitHub Codespaces (Recommended - No Local Setup)
 
 **Fastest way to get started - runs entirely in the cloud!**
