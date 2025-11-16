@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - dev
-      - testBuildAndDeployArtifacts
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
