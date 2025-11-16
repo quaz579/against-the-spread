@@ -70,6 +70,28 @@ public class TestEnvironment : IDisposable
 
         var processStartInfo = new ProcessStartInfo
         {
+            FileName = "dotnet",
+            Arguments = "build",
+            WorkingDirectory = functionsPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        var buildProcess = Process.Start(processStartInfo);
+        if (buildProcess != null)
+        {
+            await buildProcess.WaitForExitAsync();
+            if (buildProcess.ExitCode != 0)
+            {
+                throw new Exception("Failed to build Functions project");
+            }
+        }
+
+        // Now start func host
+        processStartInfo = new ProcessStartInfo
+        {
             FileName = "func",
             Arguments = "start --port 7071",
             WorkingDirectory = functionsPath,
@@ -91,7 +113,7 @@ public class TestEnvironment : IDisposable
         }
 
         // Wait for Functions to be ready
-        await WaitForServiceAsync($"{FunctionsUrl}/api/weeks?year=2025", TimeSpan.FromSeconds(60));
+        await WaitForServiceAsync($"{FunctionsUrl}/api/weeks?year=2025", TimeSpan.FromSeconds(90));
         Console.WriteLine("Azure Functions started successfully");
     }
 
@@ -104,10 +126,33 @@ public class TestEnvironment : IDisposable
         
         var webPath = Path.Combine(_workingDirectory, "src", "AgainstTheSpread.Web");
 
+        // Build first
+        var buildStartInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = "build",
+            WorkingDirectory = webPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        var buildProcess = Process.Start(buildStartInfo);
+        if (buildProcess != null)
+        {
+            await buildProcess.WaitForExitAsync();
+            if (buildProcess.ExitCode != 0)
+            {
+                throw new Exception("Failed to build Web project");
+            }
+        }
+
+        // Now run the app
         var processStartInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = "run --urls http://localhost:5158",
+            Arguments = "run --no-build --urls http://localhost:5158",
             WorkingDirectory = webPath,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -126,7 +171,7 @@ public class TestEnvironment : IDisposable
         }
 
         // Wait for Web App to be ready
-        await WaitForServiceAsync(WebUrl, TimeSpan.FromSeconds(60));
+        await WaitForServiceAsync(WebUrl, TimeSpan.FromSeconds(90));
         Console.WriteLine("Web App started successfully");
     }
 

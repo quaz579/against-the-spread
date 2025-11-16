@@ -39,15 +39,17 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --no-restore
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Build Playwright test project
+        run: dotnet build src/AgainstTheSpread.SmokeTests --no-restore --configuration Release
 
       - name: Install Playwright browsers
         run: |
-          cd src/AgainstTheSpread.SmokeTests
-          pwsh bin/Debug/net8.0/playwright.ps1 install --with-deps chromium
+          pwsh src/AgainstTheSpread.SmokeTests/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
 
       - name: Run smoke tests
-        run: dotnet test src/AgainstTheSpread.SmokeTests --no-build --verbosity normal
+        run: dotnet test src/AgainstTheSpread.SmokeTests --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
         env:
           PWDEBUG: 0
 
