@@ -86,7 +86,6 @@ src/
 │   ├── Interfaces/              # Service contracts
 │   └── Services/                # Business logic
 ├── AgainstTheSpread.Functions/  # Azure Functions API
-│   ├── Functions/               # HTTP triggers
 │   └── Program.cs              # DI configuration
 ├── AgainstTheSpread.Web/        # Blazor WASM PWA
 │   ├── Pages/                  # Razor pages
