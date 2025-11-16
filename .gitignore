@@ -127,6 +127,11 @@ test-results/
 playwright-report/
 playwright/.cache/
 
+## Tests
+tests/node_modules/
+tests/dist/
+tests/package-lock.json
+
 ## Backup files
 *.bak
 *.backup
