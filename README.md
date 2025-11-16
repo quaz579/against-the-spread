@@ -43,9 +43,27 @@ A Progressive Web Application (PWA) for managing a weekly college football pick'
 └─────────────────┘
 ```
 
-## 🚀 Setup
+## 🚀 Quick Start
 
-### Prerequisites
+### 🤖 GitHub Copilot Development Environment (Recommended)
+
+**Get started in 5 minutes with zero local setup!**
+
+We provide a fully configured development container that includes all tools, dependencies, and services pre-installed. This is the fastest way to start developing and testing:
+
+- ✅ **GitHub Codespaces**: Cloud-based, no local installation needed
+- ✅ **VS Code Dev Container**: Docker-based local development
+- ✅ **Pre-configured**: .NET 8, Node.js, Azure Functions, Azurite, Playwright
+- ✅ **No Firewall Issues**: All services run locally/in-cloud
+- ✅ **One-Click Start**: `./start-local.sh` starts everything
+
+**👉 [See COPILOT_ENVIRONMENT.md for detailed instructions](COPILOT_ENVIRONMENT.md)**
+
+### Manual Setup
+
+If you prefer to install tools manually:
+
+#### Prerequisites
 
 - .NET 8 SDK
 - Azure CLI
@@ -54,7 +72,7 @@ A Progressive Web Application (PWA) for managing a weekly college football pick'
 - Azure Static Web Apps CLI: `npm install -g @azure/static-web-apps-cli`
 - Azure subscription (free tier works)
 
-### Environment Setup
+#### Environment Setup
 
 1. **Clone the repository**
    ```bash
