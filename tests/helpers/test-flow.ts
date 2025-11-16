@@ -27,25 +27,26 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
     await page.waitForLoadState('networkidle');
   }
 
-  // Wait for the page to finish loading (spinner to disappear)
-  // The page loads with the current year by default and calls the API
-  await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 10000 });
+  // Wait for the page to finish initial loading and form to be visible
+  // The page loads with the current year (2024) by default
+  // With test data uploaded for 2024, the form should appear
+  await page.waitForSelector('select#year', { state: 'visible', timeout: 15000 });
 
-  // Now select year 2025 (this will trigger LoadAvailableWeeks again)
+  // Enter name
+  const nameInput = page.locator('input#userName, input[placeholder*="name" i]');
+  await nameInput.fill(userName);
+
+  // Select year 2025 (this will trigger LoadAvailableWeeks again)
   const yearSelect = page.locator('select#year');
   await yearSelect.selectOption('2025');
   
   // Wait for the API call to complete after year change
-  await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 10000 });
+  await page.waitForLoadState('networkidle');
   
   // Wait for weeks dropdown to be populated
   const weekSelect = page.locator('select#week');
   await weekSelect.waitFor({ state: 'attached' });
   await expect(weekSelect).not.toBeDisabled();
-
-  // Enter name
-  const nameInput = page.locator('input#userName, input[placeholder*="name" i]');
-  await nameInput.fill(userName);
 
   // Select Week
   await weekSelect.selectOption(String(week));
