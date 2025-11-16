@@ -1,17 +1,17 @@
 import { TestEnvironment } from './helpers/test-environment';
 import * as path from 'path';
-
-let testEnv: TestEnvironment | undefined;
+import * as fs from 'fs';
 
 /**
  * Global setup for Playwright tests
  * Starts Azurite, Functions, and Web App
+ * Saves environment info to a state file for tests to use
  */
 export default async function globalSetup() {
   console.log('=== Starting Global Setup ===');
   
   const repoRoot = path.resolve(__dirname, '..');
-  testEnv = new TestEnvironment(repoRoot);
+  const testEnv = new TestEnvironment(repoRoot);
   
   try {
     // Start services
@@ -32,26 +32,19 @@ export default async function globalSetup() {
       2025
     );
     
+    // Save environment state for tests to use (optional, for reference)
+    const stateFile = path.join(__dirname, '.test-state.json');
+    fs.writeFileSync(stateFile, JSON.stringify({
+      webUrl: testEnv.webUrl,
+      functionsUrl: testEnv.functionsUrl,
+      setupComplete: true,
+      timestamp: new Date().toISOString()
+    }, null, 2));
+    
     console.log('=== Global Setup Complete ===');
+    console.log('Note: Cleanup skipped - running on ephemeral CI runner');
   } catch (error) {
     console.error('Global setup failed:', error);
-    if (testEnv) {
-      await testEnv.cleanup();
-    }
     throw error;
   }
-}
-
-/**
- * Global teardown for Playwright tests
- * Cleans up all processes
- */
-export async function globalTeardown() {
-  console.log('=== Starting Global Teardown ===');
-  
-  if (testEnv) {
-    await testEnv.cleanup();
-  }
-  
-  console.log('=== Global Teardown Complete ===');
 }

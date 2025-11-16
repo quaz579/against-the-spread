@@ -49,7 +49,6 @@ export default defineConfig({
     },
   ],
 
-  /* Global setup and teardown */
+  /* Global setup - no teardown needed on ephemeral CI runners */
   globalSetup: require.resolve('./global-setup.ts'),
-  globalTeardown: require.resolve('./global-teardown.ts'),
 });
