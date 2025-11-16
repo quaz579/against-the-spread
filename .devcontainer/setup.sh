@@ -57,6 +57,7 @@ fi
 # Make scripts executable
 chmod +x start-local.sh 2>/dev/null || true
 chmod +x stop-local.sh 2>/dev/null || true
+chmod +x validate-environment.sh 2>/dev/null || true
 
 echo ""
 echo "✅ Dev container setup complete!"
