@@ -19,22 +19,27 @@ export default async function globalSetup() {
     await testEnv.startFunctions();
     await testEnv.startWebApp();
     
-    // Upload test data for current year (2024) to prevent initial error state
-    // This allows the page to load successfully with the default year
+    // Give services a moment to fully stabilize before uploading data
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Upload test data for both years to handle different scenarios
+    // - 2024: In case system clock shows 2024 as current year
+    // - 2025: For year selection testing and if system shows 2025
     const referenceDocsPath = path.join(repoRoot, 'reference-docs');
-    const currentYear = new Date().getFullYear(); // 2024
+    
+    // Upload for 2024
     await testEnv.uploadLinesFile(
       path.join(referenceDocsPath, 'Week 11 Lines.xlsx'),
       11,
-      currentYear
+      2024
     );
     await testEnv.uploadLinesFile(
       path.join(referenceDocsPath, 'Week 12 Lines.xlsx'),
       12,
-      currentYear
+      2024
     );
     
-    // Also upload for 2025 for year selection testing
+    // Upload for 2025
     await testEnv.uploadLinesFile(
       path.join(referenceDocsPath, 'Week 11 Lines.xlsx'),
       11,
