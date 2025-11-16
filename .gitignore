@@ -130,7 +130,6 @@ playwright/.cache/
 ## Tests
 tests/node_modules/
 tests/dist/
-tests/package-lock.json
 tests/.test-state.json
 
 ## Backup files
