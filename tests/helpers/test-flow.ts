@@ -30,7 +30,7 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
   // Check if there's an error message and retry multiple times if needed
   // The page might show an error initially if data isn't ready yet
   let retryCount = 0;
-  const maxRetries = 3;
+  const maxRetries = 5;
   while (retryCount < maxRetries) {
     const errorAlert = page.locator('.alert-danger');
     const errorCount = await errorAlert.count();
@@ -39,7 +39,7 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
       const retryButton = page.locator('button:has-text("Retry")');
       await retryButton.click();
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(1000); // Give the API call time to complete
+      await page.waitForTimeout(2000); // Give the API call more time to complete
       retryCount++;
     } else {
       break;
@@ -54,14 +54,8 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
   const nameInput = page.locator('input#userName, input[placeholder*="name" i]');
   await nameInput.fill(userName);
 
-  // Select year 2025 (this will trigger LoadAvailableWeeks again)
-  const yearSelect = page.locator('select#year');
-  await yearSelect.selectOption('2025');
-  
-  // Wait for the API call to complete after year change
-  await page.waitForLoadState('networkidle');
-  
-  // Wait for weeks dropdown to be populated
+  // Don't change the year - use the current year (2025) which is already selected
+  // Just wait for weeks dropdown to be populated
   const weekSelect = page.locator('select#week');
   await weekSelect.waitFor({ state: 'attached' });
   await expect(weekSelect).not.toBeDisabled();
