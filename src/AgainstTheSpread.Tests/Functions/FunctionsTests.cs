@@ -58,6 +58,21 @@ public class FunctionsTests
         function.Should().NotBeNull();
     }
 
+    [Fact]
+    public void UploadLinesFunction_Construction_InjectsDependencies()
+    {
+        // Arrange
+        var mockLogger = new Mock<ILogger<UploadLinesFunction>>();
+        var mockExcel = new Mock<IExcelService>();
+        var mockStorage = new Mock<IStorageService>();
+
+        // Act
+        var function = new UploadLinesFunction(mockLogger.Object, mockExcel.Object, mockStorage.Object);
+
+        // Assert
+        function.Should().NotBeNull();
+    }
+
     // Note: Full integration tests for HTTP endpoints will be added in Phase 8
     // These would require mocking HttpRequestData and FunctionContext which is complex
     // For now, we verify the functions are constructed and services are injected correctly

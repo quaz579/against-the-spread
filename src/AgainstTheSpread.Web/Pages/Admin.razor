@@ -246,12 +246,14 @@
             }
             else
             {
-                errorMessage = "Failed to upload file. Please check the format and try again.";
+                errorMessage = response?.Message ?? "Failed to upload file. Please check the format and try again.";
+                Logger.LogError("Upload failed: {ErrorMessage}", errorMessage);
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Error uploading file: {ex.Message}";
+            Logger.LogError(ex, "Exception during file upload");
         }
         finally
         {

@@ -105,9 +105,15 @@ public class UploadLinesFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading lines");
+            _logger.LogError(ex, "Error uploading lines: {ErrorMessage}", ex.Message);
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await errorResponse.WriteAsJsonAsync(new { error = "Failed to upload lines" });
+            await errorResponse.WriteAsJsonAsync(new 
+            { 
+                error = "Failed to upload lines",
+                message = ex.Message,
+                details = ex.InnerException?.Message,
+                type = ex.GetType().Name
+            });
             return errorResponse;
         }
     }

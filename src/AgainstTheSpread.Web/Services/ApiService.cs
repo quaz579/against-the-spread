@@ -75,23 +75,43 @@ public class ApiService
     {
         try
         {
-            using var content = new MultipartFormDataContent();
-            var streamContent = new StreamContent(fileStream);
+            // The backend expects raw file content in the body, not multipart
+            using var streamContent = new StreamContent(fileStream);
             streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            content.Add(streamContent, "file", fileName);
 
-            var response = await _httpClient.PostAsync($"api/upload-lines?week={week}&year={year}", content);
+            var response = await _httpClient.PostAsync($"api/upload-lines?week={week}&year={year}", streamContent);
 
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadFromJsonAsync<UploadResponse>();
             }
 
-            return null;
+            // Try to read error details from response
+            try
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                return new UploadResponse 
+                { 
+                    Success = false, 
+                    Message = $"Upload failed with status {response.StatusCode}: {errorContent}" 
+                };
+            }
+            catch
+            {
+                return new UploadResponse 
+                { 
+                    Success = false, 
+                    Message = $"Upload failed with status {response.StatusCode}" 
+                };
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return new UploadResponse 
+            { 
+                Success = false, 
+                Message = $"Exception during upload: {ex.Message}" 
+            };
         }
     }
 
