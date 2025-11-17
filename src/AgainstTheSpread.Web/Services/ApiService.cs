@@ -1,4 +1,5 @@
 using AgainstTheSpread.Core.Models;
+using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
 
 namespace AgainstTheSpread.Web.Services;
@@ -9,10 +10,12 @@ namespace AgainstTheSpread.Web.Services;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<ApiService> _logger;
 
-    public ApiService(HttpClient httpClient)
+    public ApiService(HttpClient httpClient, ILogger<ApiService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     /// <summary>
@@ -22,27 +25,25 @@ public class ApiService
     {
         try
         {
-            Console.WriteLine($"[ApiService] Calling API: api/weeks?year={year}");
-            Console.WriteLine($"[ApiService] HttpClient BaseAddress: {_httpClient.BaseAddress}");
+            _logger.LogInformation("Calling API: api/weeks?year={Year}", year);
+            _logger.LogDebug("HttpClient BaseAddress: {BaseAddress}", _httpClient.BaseAddress);
             
             var response = await _httpClient.GetFromJsonAsync<WeeksResponse>($"api/weeks?year={year}");
             
-            Console.WriteLine($"[ApiService] Response received: {(response != null ? "not null" : "null")}");
+            _logger.LogDebug("Response received: {ResponseStatus}", response != null ? "not null" : "null");
             if (response != null)
             {
-                Console.WriteLine($"[ApiService] Response.Year: {response.Year}");
-                Console.WriteLine($"[ApiService] Response.Weeks: [{string.Join(", ", response.Weeks ?? new List<int>())}]");
-                Console.WriteLine($"[ApiService] Response.Weeks.Count: {response.Weeks?.Count ?? 0}");
+                _logger.LogDebug("Response.Year: {Year}, Response.Weeks.Count: {Count}", 
+                    response.Year, response.Weeks?.Count ?? 0);
             }
             
             var result = response?.Weeks ?? new List<int>();
-            Console.WriteLine($"[ApiService] Returning {result.Count} weeks");
+            _logger.LogInformation("Returning {Count} weeks for year {Year}", result.Count, year);
             return result;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ApiService] Exception: {ex.Message}");
-            Console.WriteLine($"[ApiService] Stack trace: {ex.StackTrace}");
+            _logger.LogError(ex, "Exception calling API for year {Year}", year);
             return new List<int>();
         }
     }

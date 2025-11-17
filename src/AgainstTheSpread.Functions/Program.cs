@@ -19,7 +19,8 @@ var host = new HostBuilder()
                 ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
                 ?? "UseDevelopmentStorage=true";
             var excelService = sp.GetRequiredService<IExcelService>();
-            return new StorageService(connectionString, excelService);
+            var logger = sp.GetRequiredService<ILogger<StorageService>>();
+            return new StorageService(connectionString, excelService, logger);
         });
     })
     .Build();

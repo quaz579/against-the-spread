@@ -140,6 +140,8 @@ tests/.test-state.json
 *.nupkg
 *.snupkg
 paket-files/
+*.deb
+*.deb.*
 
 ## JetBrains Rider
 .idea/

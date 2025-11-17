@@ -2,6 +2,7 @@ using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace AgainstTheSpread.Core.Services;
@@ -14,14 +15,16 @@ public class StorageService : IStorageService
 {
     private readonly BlobContainerClient _containerClient;
     private readonly IExcelService _excelService;
+    private readonly ILogger<StorageService> _logger;
     private const string ContainerName = "gamefiles";
     private const string LinesFolder = "lines";
 
-    public StorageService(string connectionString, IExcelService excelService)
+    public StorageService(string connectionString, IExcelService excelService, ILogger<StorageService> logger)
     {
         var blobServiceClient = new BlobServiceClient(connectionString);
         _containerClient = blobServiceClient.GetBlobContainerClient(ContainerName);
         _excelService = excelService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -111,8 +114,8 @@ public class StorageService : IStorageService
         try
         {
             var prefix = $"{LinesFolder}/week-";
-            Console.WriteLine($"[StorageService] GetAvailableWeeksAsync called for year {year}");
-            Console.WriteLine($"[StorageService] Searching with prefix: {prefix}");
+            _logger.LogInformation("GetAvailableWeeksAsync called for year {Year}", year);
+            _logger.LogDebug("Searching with prefix: {Prefix}", prefix);
             
             int totalBlobs = 0;
             int matchingBlobs = 0;
@@ -122,44 +125,42 @@ public class StorageService : IStorageService
                 cancellationToken: cancellationToken))
             {
                 totalBlobs++;
-                Console.WriteLine($"[StorageService] Found blob: {blobItem.Name}");
+                _logger.LogDebug("Found blob: {BlobName}", blobItem.Name);
                 
                 // Extract week number from blob name like "lines/week-1-2024.json"
                 var fileName = blobItem.Name;
                 if (!fileName.EndsWith($"-{year}.json"))
                 {
-                    Console.WriteLine($"[StorageService] Skipping {fileName} - doesn't end with -{year}.json");
+                    _logger.LogDebug("Skipping {FileName} - doesn't end with -{Year}.json", fileName, year);
                     continue;
                 }
                 
                 matchingBlobs++;
-                Console.WriteLine($"[StorageService] Blob {fileName} matches year {year}");
+                _logger.LogDebug("Blob {FileName} matches year {Year}", fileName, year);
 
                 var parts = fileName.Split('-');
-                Console.WriteLine($"[StorageService] Split parts: [{string.Join(", ", parts)}]");
+                _logger.LogDebug("Split parts: [{Parts}]", string.Join(", ", parts));
                 
                 if (parts.Length >= 2 && int.TryParse(parts[1], out int week))
                 {
-                    Console.WriteLine($"[StorageService] Extracted week number: {week}");
+                    _logger.LogDebug("Extracted week number: {Week}", week);
                     weeks.Add(week);
                 }
                 else
                 {
-                    Console.WriteLine($"[StorageService] Failed to parse week from parts[1]: {(parts.Length >= 2 ? parts[1] : "N/A")}");
+                    _logger.LogWarning("Failed to parse week from parts[1]: {Part}", parts.Length >= 2 ? parts[1] : "N/A");
                 }
             }
 
-            Console.WriteLine($"[StorageService] Total blobs found: {totalBlobs}");
-            Console.WriteLine($"[StorageService] Matching blobs: {matchingBlobs}");
-            Console.WriteLine($"[StorageService] Weeks extracted: [{string.Join(", ", weeks)}]");
+            _logger.LogInformation("Total blobs found: {TotalBlobs}, Matching blobs: {MatchingBlobs}, Weeks extracted: [{Weeks}]", 
+                totalBlobs, matchingBlobs, string.Join(", ", weeks));
 
             weeks.Sort();
             return weeks;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[StorageService] Exception in GetAvailableWeeksAsync: {ex.Message}");
-            Console.WriteLine($"[StorageService] Stack trace: {ex.StackTrace}");
+            _logger.LogError(ex, "Exception in GetAvailableWeeksAsync for year {Year}", year);
             return new List<int>();
         }
     }
