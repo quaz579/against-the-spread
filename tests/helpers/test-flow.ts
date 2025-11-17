@@ -50,9 +50,12 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
   // The page should now show the form with year selector
   await page.waitForSelector('select#year', { state: 'visible', timeout: 15000 });
 
-  // Enter name
+  // Enter name - this triggers @bind on input event
   const nameInput = page.locator('input#userName, input[placeholder*="name" i]');
   await nameInput.fill(userName);
+  
+  // Wait for Blazor to process the name input binding
+  await page.waitForTimeout(500);
 
   // Don't change the year - use the current year (2025) which is already selected
   // Just wait for weeks dropdown to be populated
@@ -60,37 +63,27 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
   await weekSelect.waitFor({ state: 'attached' });
   await expect(weekSelect).not.toBeDisabled();
 
-  // Select Week
+  // Select Week - this triggers @bind on change event
   await weekSelect.selectOption(String(week));
   
-  // Wait very long for Blazor WASM to fully process the binding
-  // Blazor WASM can be slow on first load
-  await page.waitForTimeout(5000);
+  // Wait for Blazor to process the week selection binding
+  // The @bind updates selectedWeek which affects the button's disabled state
+  await page.waitForTimeout(1000);
   
-  // Check if we can find the games page elements - if button click worked, we should see game cards
-  // If not, try clicking again
+  // Now wait for the button to actually be enabled (not just appear enabled)
+  // Check if the disabled attribute is removed or false
   const continueButton = page.locator('button.btn-primary.btn-lg');
   
-  let attempts = 0;
-  while (attempts < 3) {
-    // Try clicking the button
-    await continueButton.click({ force: true, timeout: 5000 }).catch(() => {});
-    
-    // Wait a bit for navigation
-    await page.waitForTimeout(2000);
-    
-    // Check if we're on the games page by looking for game elements
-    const gameCards = await page.locator('.card').count();
-    if (gameCards > 1) {
-      console.log(`Successfully navigated to games page (found ${gameCards} cards)`);
-      break;
-    }
-    
-    console.log(`Attempt ${attempts + 1}: Still on form page, trying again...`);
-    attempts++;
-  }
+  // Wait up to 10 seconds for button to become truly enabled
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('button.btn-primary.btn-lg') as HTMLButtonElement;
+    return btn && !btn.disabled;
+  }, { timeout: 10000 });
   
-  // Final wait for games to fully load
+  // Now click the button - it should work
+  await continueButton.click();
+  
+  // Wait for navigation to games page
   await page.waitForLoadState('networkidle');
   
   // Wait for loading spinner to disappear (indicates games are loading)
