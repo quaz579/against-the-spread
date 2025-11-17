@@ -56,6 +56,12 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
   await nameInput.clear();
   await nameInput.type(userName, { delay: 50 }); // Small delay between keystrokes
 
+  // Solution #3: Manually dispatch events to ensure Blazor processes them
+  await nameInput.evaluate((el) => {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
   // Don't change the year - use the current year (2025) which is already selected
   // Just wait for weeks dropdown to be populated
   const weekSelect = page.locator('select#week');
@@ -64,6 +70,11 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
 
   // Select Week using selectOption
   await weekSelect.selectOption(String(week));
+  
+  // Solution #3: Manually dispatch change event for week select
+  await weekSelect.evaluate((el) => {
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   
   // Wait for Blazor to process the bindings and enable the button
   // The button's disabled state depends on userName and selectedWeek in C# state
