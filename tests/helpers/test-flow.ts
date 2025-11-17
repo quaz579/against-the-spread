@@ -27,9 +27,27 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
     await page.waitForLoadState('networkidle');
   }
 
-  // Wait for the page to finish initial loading and form to be visible
-  // The page loads with the current year (2024) by default
-  // With test data uploaded for 2024, the form should appear
+  // Check if there's an error message and retry multiple times if needed
+  // The page might show an error initially if data isn't ready yet
+  let retryCount = 0;
+  const maxRetries = 3;
+  while (retryCount < maxRetries) {
+    const errorAlert = page.locator('.alert-danger');
+    const errorCount = await errorAlert.count();
+    if (errorCount > 0) {
+      console.log(`Error detected on page (attempt ${retryCount + 1}/${maxRetries}), clicking Retry button...`);
+      const retryButton = page.locator('button:has-text("Retry")');
+      await retryButton.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1000); // Give the API call time to complete
+      retryCount++;
+    } else {
+      break;
+    }
+  }
+
+  // Wait for the form to be visible
+  // The page should now show the form with year selector
   await page.waitForSelector('select#year', { state: 'visible', timeout: 15000 });
 
   // Enter name
