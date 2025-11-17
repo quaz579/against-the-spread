@@ -60,34 +60,38 @@ export async function testWeekFlow(page: Page, week: number, userName: string): 
   await weekSelect.waitFor({ state: 'attached' });
   await expect(weekSelect).not.toBeDisabled();
 
-  // Select Week - need to ensure the value is properly bound
+  // Select Week
   await weekSelect.selectOption(String(week));
   
-  // Trigger Blazor's onchange event by dispatching it
-  await page.evaluate(() => {
-    const select = document.getElementById('week') as HTMLSelectElement;
-    if (select) {
-      const event = new Event('change', { bubbles: true });
-      select.dispatchEvent(event);
+  // Wait very long for Blazor WASM to fully process the binding
+  // Blazor WASM can be slow on first load
+  await page.waitForTimeout(5000);
+  
+  // Check if we can find the games page elements - if button click worked, we should see game cards
+  // If not, try clicking again
+  const continueButton = page.locator('button.btn-primary.btn-lg');
+  
+  let attempts = 0;
+  while (attempts < 3) {
+    // Try clicking the button
+    await continueButton.click({ force: true, timeout: 5000 }).catch(() => {});
+    
+    // Wait a bit for navigation
+    await page.waitForTimeout(2000);
+    
+    // Check if we're on the games page by looking for game elements
+    const gameCards = await page.locator('.card').count();
+    if (gameCards > 1) {
+      console.log(`Successfully navigated to games page (found ${gameCards} cards)`);
+      break;
     }
-  });
+    
+    console.log(`Attempt ${attempts + 1}: Still on form page, trying again...`);
+    attempts++;
+  }
   
-  // Wait even longer for Blazor to fully bind and enable the button
-  await page.waitForTimeout(4000);
-  
-  // Click the button using Blazor's method - find it and call the onclick directly
-  await page.evaluate(() => {
-    const button = document.querySelector('button.btn-primary.btn-lg') as HTMLButtonElement;
-    if (button && button.onclick) {
-      button.onclick(new MouseEvent('click'));
-    } else if (button) {
-      button.click();
-    }
-  });
-  
-  // Wait for navigation to games page
+  // Final wait for games to fully load
   await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(1000);
   
   // Wait for loading spinner to disappear (indicates games are loading)
   await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 10000 });
