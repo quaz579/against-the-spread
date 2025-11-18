@@ -17,6 +17,22 @@ The E2E tests validate the complete user flow:
 - **Azure Functions Core Tools** (v4)
 - **Azurite** (Azure Storage Emulator)
 
+### Validate Prerequisites
+
+Run the validation script to check if all prerequisites are met:
+```bash
+./tests/validate-environment.sh
+```
+
+This will check:
+- Node.js version (v18+)
+- npm availability
+- .NET 8 SDK
+- Azure Functions Core Tools (v4)
+- Azurite installation
+- Port availability (10000, 7071, 5158)
+- Test dependencies status
+
 ## Installation
 
 1. Install test dependencies:
