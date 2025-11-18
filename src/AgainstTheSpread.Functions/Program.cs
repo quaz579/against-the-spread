@@ -3,6 +3,7 @@ using AgainstTheSpread.Core.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
@@ -19,7 +20,8 @@ var host = new HostBuilder()
                 ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
                 ?? "UseDevelopmentStorage=true";
             var excelService = sp.GetRequiredService<IExcelService>();
-            return new StorageService(connectionString, excelService);
+            var logger = sp.GetRequiredService<ILogger<StorageService>>();
+            return new StorageService(connectionString, excelService, logger);
         });
     })
     .Build();

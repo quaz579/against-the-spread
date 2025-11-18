@@ -1,4 +1,5 @@
 using AgainstTheSpread.Core.Models;
+using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
 
 namespace AgainstTheSpread.Web.Services;
@@ -9,10 +10,12 @@ namespace AgainstTheSpread.Web.Services;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<ApiService> _logger;
 
-    public ApiService(HttpClient httpClient)
+    public ApiService(HttpClient httpClient, ILogger<ApiService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     /// <summary>
@@ -22,11 +25,25 @@ public class ApiService
     {
         try
         {
+            _logger.LogInformation("Calling API: api/weeks?year={Year}", year);
+            _logger.LogDebug("HttpClient BaseAddress: {BaseAddress}", _httpClient.BaseAddress);
+            
             var response = await _httpClient.GetFromJsonAsync<WeeksResponse>($"api/weeks?year={year}");
-            return response?.Weeks ?? new List<int>();
+            
+            _logger.LogDebug("Response received: {ResponseStatus}", response != null ? "not null" : "null");
+            if (response != null)
+            {
+                _logger.LogDebug("Response.Year: {Year}, Response.Weeks.Count: {Count}", 
+                    response.Year, response.Weeks?.Count ?? 0);
+            }
+            
+            var result = response?.Weeks ?? new List<int>();
+            _logger.LogInformation("Returning {Count} weeks for year {Year}", result.Count, year);
+            return result;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Exception calling API for year {Year}", year);
             return new List<int>();
         }
     }

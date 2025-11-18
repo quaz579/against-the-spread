@@ -1,7 +1,8 @@
-import { ChildProcess, spawn } from 'child_process';
 import { BlobServiceClient } from '@azure/storage-blob';
-import * as path from 'path';
+import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
+import * as http from 'http';
+import * as path from 'path';
 
 /**
  * Test environment manager for Playwright smoke tests
@@ -11,11 +12,11 @@ export class TestEnvironment {
   private azuriteProcess?: ChildProcess;
   private functionsProcess?: ChildProcess;
   private webProcess?: ChildProcess;
-  
+
   private readonly repoRoot: string;
-  private readonly azuriteConnectionString = 
+  private readonly azuriteConnectionString =
     'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;';
-  
+
   public readonly functionsUrl = 'http://localhost:7071';
   public readonly webUrl = 'http://localhost:5158';
 
@@ -28,7 +29,7 @@ export class TestEnvironment {
    */
   async startAzurite(): Promise<void> {
     console.log('Starting Azurite...');
-    
+
     const azuriteDir = path.join('/tmp', 'azurite-test');
     if (!fs.existsSync(azuriteDir)) {
       fs.mkdirSync(azuriteDir, { recursive: true });
@@ -83,7 +84,7 @@ export class TestEnvironment {
    */
   async startFunctions(): Promise<void> {
     console.log('Starting Azure Functions...');
-    
+
     const functionsPath = path.join(this.repoRoot, 'src', 'AgainstTheSpread.Functions');
 
     // Create local.settings.json if it doesn't exist
@@ -95,10 +96,13 @@ export class TestEnvironment {
           AzureWebJobsStorage: this.azuriteConnectionString,
           AZURE_STORAGE_CONNECTION_STRING: this.azuriteConnectionString,
           FUNCTIONS_WORKER_RUNTIME: "dotnet-isolated"
+        },
+        Host: {
+          CORS: "*"
         }
       };
       fs.writeFileSync(localSettingsPath, JSON.stringify(localSettings, null, 2));
-      console.log('Created local.settings.json for Functions');
+      console.log('Created local.settings.json for Functions with CORS enabled');
     }
 
     // Build first
@@ -140,7 +144,7 @@ export class TestEnvironment {
    */
   async startWebApp(): Promise<void> {
     console.log('Starting Web App...');
-    
+
     const webPath = path.join(this.repoRoot, 'src', 'AgainstTheSpread.Web');
 
     // Build first
@@ -151,7 +155,8 @@ export class TestEnvironment {
       cwd: webPath,
       env: {
         ...process.env,
-        API_BASE_URL: this.functionsUrl
+        API_BASE_URL: this.functionsUrl,
+        ASPNETCORE_ENVIRONMENT: 'Development'
       }
     });
 
@@ -180,22 +185,22 @@ export class TestEnvironment {
    */
   async uploadLinesFile(filePath: string, week: number, year: number): Promise<void> {
     console.log(`Uploading lines for Week ${week}, Year ${year}...`);
-    
+
     const blobServiceClient = BlobServiceClient.fromConnectionString(this.azuriteConnectionString);
     const containerClient = blobServiceClient.getContainerClient('gamefiles');
-    
+
     // Create container if it doesn't exist
     await containerClient.createIfNotExists();
-    
+
     // Upload Excel file
     const excelBlobName = `lines/week-${week}-${year}.xlsx`;
     const excelBlobClient = containerClient.getBlockBlobClient(excelBlobName);
     await excelBlobClient.uploadFile(filePath);
-    
+
     // Create a simple JSON representation for the API
     const jsonBlobName = `lines/week-${week}-${year}.json`;
     const jsonBlobClient = containerClient.getBlockBlobClient(jsonBlobName);
-    
+
     const weeklyLinesJson = {
       week: week,
       year: year,
@@ -209,34 +214,63 @@ export class TestEnvironment {
         { favorite: 'Team M', line: -4.0, vsAt: 'vs', underdog: 'Team N', gameDate: new Date(), gameTime: '7:00 PM' }
       ]
     };
-    
+
     const jsonContent = JSON.stringify(weeklyLinesJson, null, 2);
     await jsonBlobClient.upload(jsonContent, jsonContent.length);
-    
+
     console.log(`Successfully uploaded Week ${week} lines`);
   }
 
   /**
-   * Wait for a service to become available
+   * Wait for a service to become available using native http module
    */
   private async waitForService(url: string, timeout: number): Promise<void> {
     const startTime = Date.now();
-    
+    let lastError: Error | undefined;
+    let attemptCount = 0;
+
     while (Date.now() - startTime < timeout) {
-      try {
-        const response = await fetch(url);
-        if (response.ok || response.status === 404) {
-          // Service is responding (even 404 means it's running)
-          return;
-        }
-      } catch {
-        // Service not ready yet
+      attemptCount++;
+
+      const isReady = await new Promise<boolean>((resolve) => {
+        const req = http.get(url, (res) => {
+          // Service is responding if we get any valid HTTP response
+          if (res.statusCode && (res.statusCode < 500 || res.statusCode === 404)) {
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+          // Drain response to free up socket
+          res.resume();
+        });
+
+        req.on('error', (error) => {
+          lastError = error;
+          resolve(false);
+        });
+
+        req.setTimeout(5000, () => {
+          req.destroy();
+          resolve(false);
+        });
+      });
+
+      if (isReady) {
+        console.log(`Service at ${url} is ready after ${attemptCount} attempts`);
+        return;
       }
-      
+
+      if (attemptCount % 10 === 0) {
+        // Log every 10th attempt
+        const errorMsg = lastError ? lastError.message : 'No response';
+        console.log(`Attempt ${attemptCount}: Still waiting for ${url} - ${errorMsg}`);
+      }
+
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
-    throw new Error(`Service at ${url} did not become available within ${timeout / 1000} seconds`);
+
+    const errorMessage = lastError ? ` Last error: ${lastError.message}` : '';
+    throw new Error(`Service at ${url} did not become available within ${timeout / 1000} seconds after ${attemptCount} attempts.${errorMessage}`);
   }
 
   /**
@@ -275,13 +309,13 @@ export class TestEnvironment {
    */
   async cleanup(): Promise<void> {
     console.log('Shutting down test environment...');
-    
+
     // Helper to kill and confirm process termination
     const killAndWait = async (proc?: ChildProcess, name?: string): Promise<void> => {
       if (!proc || proc.killed) return;
-      
+
       proc.kill('SIGTERM');
-      
+
       // Wait up to 2 seconds for graceful exit
       let exited = false;
       const exitPromise = new Promise<void>(resolve => {
@@ -290,12 +324,12 @@ export class TestEnvironment {
           resolve();
         });
       });
-      
+
       await Promise.race([
         exitPromise,
         new Promise(resolve => setTimeout(resolve, 2000))
       ]);
-      
+
       if (!exited && proc.pid) {
         console.warn(`Process ${name} did not exit gracefully, sending SIGKILL`);
         proc.kill('SIGKILL');
@@ -308,7 +342,7 @@ export class TestEnvironment {
       killAndWait(this.functionsProcess, 'functionsProcess'),
       killAndWait(this.azuriteProcess, 'azuriteProcess')
     ]);
-    
+
     console.log('Test environment shut down');
   }
 }
