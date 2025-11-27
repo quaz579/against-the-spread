@@ -428,7 +428,7 @@
             }
         }
 
-        var picksHtmlContent = string.Join("<br>", picksLines.Select(p => $"<div>{System.Web.HttpUtility.HtmlEncode(p)}</div>"));
+        var picksHtmlContent = string.Join("", picksLines.Select(p => $"<div>{System.Web.HttpUtility.HtmlEncode(p)}</div>"));
 
         return $@"<!DOCTYPE html>
 <html lang=""en"">
