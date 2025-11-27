@@ -79,10 +79,15 @@
         };
 
         window.openPrintableWindow = function (htmlContent) {
-            const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+            // Note: We cannot use noopener,noreferrer here because we need to write
+            // content to the new window. This is safe since we're writing our own
+            // controlled HTML content, not navigating to an external URL.
+            const printWindow = window.open('', '_blank');
             if (printWindow) {
                 printWindow.document.write(htmlContent);
                 printWindow.document.close();
+                // Clear the opener reference after writing for security
+                printWindow.opener = null;
             }
         };
     </script>
