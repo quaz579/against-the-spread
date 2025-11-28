@@ -74,8 +74,16 @@ export class PicksPage {
     // Select year
     await this.yearSelect.selectOption(year.toString());
     
-    // Wait for weeks to load
-    await this.page.waitForTimeout(1000);
+    // Wait for weeks to be loaded (wait for the week option to appear)
+    await this.page.waitForFunction(
+      (weekNum) => {
+        const select = document.querySelector('#week') as HTMLSelectElement;
+        if (!select) return false;
+        return Array.from(select.options).some(opt => opt.value === weekNum.toString());
+      },
+      week,
+      { timeout: 10000 }
+    );
     
     // Select week
     await this.weekSelect.selectOption(week.toString());
@@ -122,8 +130,18 @@ export class PicksPage {
         await button.click();
         selectedCount++;
         
-        // Small delay between clicks to let state update
-        await this.page.waitForTimeout(200);
+        // Wait for the pick count display to update to reflect the selection
+        await this.page.waitForFunction(
+          (expectedCount) => {
+            const alertInfo = document.querySelector('.alert-info');
+            if (!alertInfo) return false;
+            const text = alertInfo.textContent || '';
+            const match = text.match(/Selected:\s*(\d+)\s*\/\s*6/);
+            return match && parseInt(match[1], 10) === expectedCount;
+          },
+          selectedCount,
+          { timeout: 5000 }
+        );
       }
     }
     

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { PicksPage } from '../pages/picks-page';
 import { TestEnvironment } from '../helpers/test-environment';
-import { waitForDownloadAndSave, cleanupDownloads } from '../helpers/download-helper';
+import { waitForDownloadAndSave, cleanupDownloads, getDefaultDownloadDir } from '../helpers/download-helper';
 import { validatePicksExcel } from '../helpers/excel-validator';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -11,7 +11,7 @@ const TEST_NAME = 'E2E Test User';
 const TEST_YEAR = 2025;
 const TEST_WEEK_11 = 11;
 const TEST_WEEK_12 = 12;
-const DOWNLOAD_DIR = '/tmp/playwright-downloads';
+const DOWNLOAD_DIR = getDefaultDownloadDir();
 
 // Get repository root path
 const REPO_ROOT = path.resolve(__dirname, '../..');
