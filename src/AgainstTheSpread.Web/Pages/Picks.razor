@@ -439,56 +439,6 @@
             }
         }
 
-        var picksHtmlContent = string.Join("", picksLines.Select(p => $"<div>{System.Net.WebUtility.HtmlEncode(p)}</div>"));
-
-        return $@"<!DOCTYPE html>
-<html lang=""en"">
-<head>
-    <meta charset=""utf-8"">
-    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>My Picks - Week {selectedWeek}</title>
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }}
-        .picks-container {{
-            text-align: center;
-            width: 100%;
-        }}
-        .picks-container div {{
-            font-size: clamp(28px, 8vw, 48px);
-            font-weight: bold;
-            line-height: 1.6;
-            padding: 8px 0;
-        }}
-        @media print {{
-            body {{
-                padding: 40px;
-            }}
-            .picks-container div {{
-                font-size: 36pt;
-                line-height: 1.8;
-            }}
-        }}
-    </style>
-</head>
-<body>
-    <div class=""picks-container"">
-        {picksHtmlContent}
-    </div>
-</body>
-</html>";
+        return PrintPageGenerator.GeneratePicksHtml(picksLines, selectedWeek);
     }
 }
