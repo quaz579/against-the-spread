@@ -1,14 +1,19 @@
-# Against The Spread - Playwright Smoke Tests
+# Against The Spread - Playwright E2E Tests
 
-This directory contains end-to-end smoke tests for the Against The Spread application using Playwright and TypeScript.
+This directory contains end-to-end (E2E) tests for the Against The Spread application using Playwright and TypeScript.
 
 ## Overview
 
-The smoke tests validate the complete user flow:
-1. **Environment Setup**: Starts Azurite, Azure Functions API, and Blazor Web App locally
-2. **Data Upload**: Uploads Week 11 and Week 12 test data to Azurite blob storage
-3. **User Flow**: Simulates a user making picks for both weeks
-4. **Validation**: Downloads and validates the generated Excel files
+The E2E tests validate the complete user flow:
+1. **Data Upload**: Uploads Week 11 and Week 12 test data to Azurite blob storage
+2. **User Flow**: Simulates a user making picks for both weeks
+3. **Validation**: Downloads and validates the generated Excel files
+
+**Key architectural decision**: Services (Azurite, Azure Functions, Web App) must be started manually before running tests using the existing `start-local.sh` script. This approach:
+- Makes debugging easier
+- Avoids port conflicts and timing issues
+- Allows running tests multiple times without restarting services
+- Keeps Playwright tests focused on browser automation
 
 ## Prerequisites
 
@@ -16,11 +21,11 @@ The smoke tests validate the complete user flow:
 - **npm** (comes with Node.js)
 - **.NET 8 SDK**
 - **Azure Functions Core Tools** (v4)
-- **Azurite** (installed via npm)
+- **Azurite** (install globally: `npm install -g azurite`)
 
 ## Installation
 
-1. Install dependencies:
+1. Install test dependencies:
    ```bash
    cd tests
    npm install
@@ -31,10 +36,25 @@ The smoke tests validate the complete user flow:
    npx playwright install chromium
    ```
 
+## Starting Services
+
+Before running tests, start all services using the provided script from the repository root:
+
+```bash
+# From repository root
+./start-local.sh
+```
+
+Wait for the services to initialize (about 10-15 seconds). Verify they're running:
+- **Azurite**: http://localhost:10000
+- **Functions API**: http://localhost:7071/api/weeks?year=2025
+- **Web App**: http://localhost:5158
+
 ## Running Tests
 
 ### Run all tests
 ```bash
+cd tests
 npm test
 ```
 
@@ -43,19 +63,28 @@ npm test
 npm run test:headed
 ```
 
-### Debug tests
+### Debug tests interactively
 ```bash
 npm run test:debug
 ```
 
-### Run with UI mode (interactive)
+### Run with Playwright UI mode
 ```bash
 npm run test:ui
 ```
 
-### View test report
+### View HTML test report
 ```bash
 npm run test:report
+```
+
+## Stopping Services
+
+After testing, stop all services:
+
+```bash
+# From repository root
+./stop-local.sh
 ```
 
 ## Project Structure
@@ -63,12 +92,14 @@ npm run test:report
 ```
 tests/
 ├── helpers/
-│   ├── test-environment.ts    # Manages Azurite, Functions, Web App processes
-│   └── excel-validator.ts     # Validates Excel file structure
+│   ├── test-environment.ts    # Test environment utilities (file uploads)
+│   ├── excel-validator.ts     # Validates Excel file structure
+│   ├── download-helper.ts     # Handles file downloads
+│   └── index.ts               # Exports all helpers
+├── pages/
+│   └── picks-page.ts          # Page Object Model for picks page
 ├── specs/
-│   ├── week11.spec.ts         # Week 11 smoke test
-│   └── week12.spec.ts         # Week 12 smoke test
-├── global-setup.ts            # Global setup/teardown
+│   └── full-flow.spec.ts      # Complete user flow tests (Week 11 & 12)
 ├── playwright.config.ts       # Playwright configuration
 ├── package.json               # Dependencies
 ├── tsconfig.json              # TypeScript configuration
@@ -77,15 +108,16 @@ tests/
 
 ## Test Flow
 
-Each smoke test follows this flow:
+Each test follows this flow:
 
-1. **Navigate** to the application
-2. **Enter** user name
-3. **Select** year (2025) and week (11 or 12)
-4. **Click** Continue to load games
-5. **Select** 6 games by clicking team buttons
-6. **Download** the Excel file
-7. **Validate** Excel structure:
+1. **Upload lines** to Azurite blob storage using TestEnvironment helper
+2. **Navigate** to the picks page
+3. **Enter** user name
+4. **Select** year (2025) and week (11 or 12)
+5. **Click** Continue to load games
+6. **Select** 6 games by clicking team buttons
+7. **Download** the Excel file
+8. **Validate** Excel structure:
    - Row 1: Empty
    - Row 2: Empty
    - Row 3: Headers (Name, Pick 1-6)
@@ -102,55 +134,84 @@ The tests are configured in `playwright.config.ts`:
 - **Traces**: On first retry
 - **Screenshots**: On failure
 - **Video**: On failure
+- **Timeouts**: 15s for actions, 30s for navigation
 
 ## CI/CD Integration
 
 The tests run automatically on every pull request via GitHub Actions:
 
-- Workflow file: `.github/workflows/smoke-tests.yml`
+- Workflow file: `.github/workflows/e2e-tests.yml`
 - Installs all dependencies (Azure Functions Core Tools, Azurite, Playwright)
+- Starts services using `start-local.sh`
 - Runs tests in CI environment
 - Uploads test results and traces as artifacts
 
 ## Troubleshooting
 
-### Tests fail to start services
+### Services not running
 
-- Ensure ports 7071 (Functions), 5158 (Web), and 10000 (Azurite) are available
-- Check that .NET 8 SDK and Azure Functions Core Tools are installed
-- Try running services manually first to verify they work
+Ensure you've started services before running tests:
+```bash
+./start-local.sh
+```
 
-### Tests timeout waiting for services
+Wait for all services to be ready before running tests.
 
-- Increase timeout in `test-environment.ts` `waitForService` method
-- Check service logs for startup errors
-- Ensure all dependencies are built (`dotnet build`)
+### Port conflicts
+
+If you get port conflicts, check if services are already running:
+```bash
+lsof -i :7071  # Azure Functions
+lsof -i :5158  # Web App
+lsof -i :10000 # Azurite
+```
+
+Stop any conflicting processes or use `./stop-local.sh`.
+
+### Tests timeout waiting for elements
+
+- Verify services are running and responding
+- Check browser console for JavaScript errors
+- Run tests in headed mode to see what's happening: `npm run test:headed`
 
 ### Excel validation fails
 
-- Check that the downloaded file exists in `/tmp`
-- Verify the Excel structure matches the expected format
+- Check that the downloaded file exists in `/tmp/playwright-downloads`
+- Verify the Excel structure matches `reference-docs/Weekly Picks Example.xlsx`
 - Look at the test output for specific validation errors
+
+### Week not appearing in dropdown
+
+- Ensure the lines file was uploaded to Azurite
+- Check Functions logs for upload errors
+- Verify the year matches (default is current year)
 
 ## Development
 
 ### Adding New Tests
 
-1. Create a new file in `specs/` directory (e.g., `week13.spec.ts`)
+1. Create a new file in `specs/` directory
 2. Import test utilities from `@playwright/test`
 3. Use `test.describe` and `test` to structure your tests
-4. Follow the existing test patterns
+4. Follow the existing test patterns in `full-flow.spec.ts`
 
-### Modifying Test Environment
+### Creating Page Objects
 
-Edit `helpers/test-environment.ts` to:
-- Change service startup logic
-- Modify upload behavior
-- Adjust timeouts and retries
+1. Create a new file in `pages/` directory
+2. Define locators for page elements
+3. Add methods for common interactions
+4. See `picks-page.ts` for an example
 
-### Custom Assertions
+### Custom Validation
 
 Edit `helpers/excel-validator.ts` to add custom Excel validation logic.
+
+## Reference Files
+
+Test data files are in `reference-docs/`:
+- `Week 11 Lines.xlsx` - Week 11 game lines
+- `Week 12 Lines.xlsx` - Week 12 game lines
+- `Weekly Picks Example.xlsx` - Expected output format
 
 ## Resources
 
