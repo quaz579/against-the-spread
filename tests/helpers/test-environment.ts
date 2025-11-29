@@ -181,7 +181,11 @@ export class TestEnvironment {
   }
 
   /**
-   * Upload weekly lines file to Azurite storage
+   * Upload weekly lines file to Azurite storage.
+   * Creates both Excel (.xlsx) and JSON representations.
+   * JSON structure must match the C# WeeklyLines model (AgainstTheSpread.Core.Models.WeeklyLines)
+   * with PascalCase properties: Week (number), Year (number), UploadedAt (ISO string), Games (array of game objects).
+   * See the C# model for required/optional fields and property details.
    */
   async uploadLinesFile(filePath: string, week: number, year: number): Promise<void> {
     console.log(`Uploading lines for Week ${week}, Year ${year}...`);
@@ -197,21 +201,25 @@ export class TestEnvironment {
     const excelBlobClient = containerClient.getBlockBlobClient(excelBlobName);
     await excelBlobClient.uploadFile(filePath);
 
-    // Create a simple JSON representation for the API
+    // Create a JSON representation matching the C# WeeklyLines model
+    // Property names must be PascalCase to match C# model
     const jsonBlobName = `lines/week-${week}-${year}.json`;
     const jsonBlobClient = containerClient.getBlockBlobClient(jsonBlobName);
 
+    // Using same date for all test games for simplicity
+    const gameDate = new Date();
     const weeklyLinesJson = {
-      week: week,
-      year: year,
-      games: [
-        { favorite: 'Team A', line: -7.0, vsAt: 'vs', underdog: 'Team B', gameDate: new Date(), gameTime: '12:00 PM' },
-        { favorite: 'Team C', line: -3.5, vsAt: 'at', underdog: 'Team D', gameDate: new Date(), gameTime: '3:30 PM' },
-        { favorite: 'Team E', line: -10.0, vsAt: 'vs', underdog: 'Team F', gameDate: new Date(), gameTime: '7:00 PM' },
-        { favorite: 'Team G', line: -14.5, vsAt: 'at', underdog: 'Team H', gameDate: new Date(), gameTime: '8:00 PM' },
-        { favorite: 'Team I', line: -21.0, vsAt: 'vs', underdog: 'Team J', gameDate: new Date(), gameTime: '12:00 PM' },
-        { favorite: 'Team K', line: -6.5, vsAt: 'at', underdog: 'Team L', gameDate: new Date(), gameTime: '3:30 PM' },
-        { favorite: 'Team M', line: -4.0, vsAt: 'vs', underdog: 'Team N', gameDate: new Date(), gameTime: '7:00 PM' }
+      Week: week,
+      Year: year,
+      UploadedAt: new Date().toISOString(),
+      Games: [
+        { Favorite: 'Alabama', Line: -7.0, VsAt: 'vs', Underdog: 'Auburn', GameDate: gameDate.toISOString() },
+        { Favorite: 'Georgia', Line: -3.5, VsAt: 'at', Underdog: 'Florida', GameDate: gameDate.toISOString() },
+        { Favorite: 'Ohio State', Line: -10.0, VsAt: 'vs', Underdog: 'Michigan', GameDate: gameDate.toISOString() },
+        { Favorite: 'Texas', Line: -14.5, VsAt: 'at', Underdog: 'Oklahoma', GameDate: gameDate.toISOString() },
+        { Favorite: 'Clemson', Line: -21.0, VsAt: 'vs', Underdog: 'Florida State', GameDate: gameDate.toISOString() },
+        { Favorite: 'Notre Dame', Line: -6.5, VsAt: 'at', Underdog: 'USC', GameDate: gameDate.toISOString() },
+        { Favorite: 'Penn State', Line: -4.0, VsAt: 'vs', Underdog: 'Michigan State', GameDate: gameDate.toISOString() }
       ]
     };
 
