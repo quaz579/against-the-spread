@@ -282,4 +282,26 @@ public class PickSelectionHelperTests
         selectedPicks.Should().Contain(new[] { "Georgia", "Ohio State", "Texas" });
         selectedPicks.Should().NotContain("Alabama");
     }
+
+    [Fact]
+    public void TogglePick_HandlesNullFavoriteOrUnderdog_Gracefully()
+    {
+        // Arrange - Game with null properties
+        var selectedPicks = new List<string>();
+        var games = new List<Game>
+        {
+            new Game { Favorite = null!, Underdog = "Georgia", Line = -7m },
+            new Game { Favorite = "Michigan", Underdog = null!, Line = -3m },
+            new Game { Favorite = "Texas", Underdog = "Oklahoma", Line = -5m }
+        };
+
+        // Act - Should not throw even with null properties
+        PickSelectionHelper.TogglePick("Georgia", selectedPicks, games);
+        PickSelectionHelper.TogglePick("Michigan", selectedPicks, games);
+        PickSelectionHelper.TogglePick("Texas", selectedPicks, games);
+
+        // Assert - Teams that could be found are added
+        selectedPicks.Should().HaveCount(3);
+        selectedPicks.Should().Contain(new[] { "Georgia", "Michigan", "Texas" });
+    }
 }
