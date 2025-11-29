@@ -1,0 +1,120 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [ main, dev ]
+  push:
+    branches: [ main ]
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Azure Functions Core Tools
+        run: |
+          wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
+
+      - name: Install Azurite globally
+        run: npm install -g azurite
+
+      - name: Restore and build .NET solution
+        run: |
+          dotnet restore
+          dotnet build --no-restore --configuration Release
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Start services in background
+        run: |
+          nohup ./start-local.sh > /tmp/services.log 2>&1 &
+          echo $! > /tmp/start-local.pid
+        
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to start..."
+          sleep 20
+          
+          # Verify Azurite is responding
+          echo "Checking Azurite..."
+          timeout 30 bash -c 'until curl -f http://localhost:10000/devstoreaccount1?comp=list 2>/dev/null; do sleep 2; done' || (echo "Azurite failed to start" && cat /tmp/services.log && exit 1)
+          
+          # Verify Functions API is responding
+          echo "Checking Functions API..."
+          timeout 30 bash -c 'until curl -f http://localhost:7071/api/weeks?year=2025 2>/dev/null; do sleep 2; done' || (echo "Functions API failed to start" && cat /tmp/services.log && exit 1)
+          
+          # Verify Web App is responding
+          echo "Checking Web App..."
+          timeout 30 bash -c 'until curl -f http://localhost:5158 2>/dev/null; do sleep 2; done' || (echo "Web App failed to start" && cat /tmp/services.log && exit 1)
+          
+          echo "All services are ready!"
+        
+      - name: Run E2E tests
+        working-directory: tests
+        run: npm test
+        env:
+          CI: true
+
+      - name: Stop services
+        if: always()
+        run: |
+          echo "Stopping services..."
+          ./stop-local.sh || true
+          
+          # Kill start-local.sh if still running
+          if [ -f /tmp/start-local.pid ]; then
+            kill $(cat /tmp/start-local.pid) 2>/dev/null || true
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 7
+
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-logs
+          path: |
+            /tmp/services.log
+            /tmp/functions.log
+            /tmp/web.log
+          retention-days: 7
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            tests/test-results/
+            /tmp/playwright-downloads/
+          retention-days: 7
