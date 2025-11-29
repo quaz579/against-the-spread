@@ -1,0 +1,141 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [ main, dev ]
+  push:
+    branches: [ main ]
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Azure Functions Core Tools
+        run: |
+          wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
+
+      - name: Install Azurite globally
+        run: npm install -g azurite
+
+      - name: Restore and build .NET solution
+        run: |
+          dotnet restore
+          dotnet build --no-restore --configuration Release
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Create local.settings.json for Functions
+        run: |
+          cat > src/AgainstTheSpread.Functions/local.settings.json << 'EOF'
+          {
+            "IsEncrypted": false,
+            "Values": {
+              "AzureWebJobsStorage": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;",
+              "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;",
+              "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"
+            },
+            "Host": {
+              "CORS": "*"
+            }
+          }
+          EOF
+
+      - name: Start Azurite
+        run: |
+          mkdir -p /tmp/azurite
+          azurite --silent --location /tmp/azurite --blobPort 10000 &
+          echo "Waiting for Azurite to start..."
+          sleep 5
+
+      - name: Start Azure Functions
+        working-directory: src/AgainstTheSpread.Functions
+        run: |
+          func start --port 7071 > /tmp/functions.log 2>&1 &
+          echo "Waiting for Functions to start..."
+          # Wait for Functions to be ready (up to 60 seconds)
+          for i in {1..60}; do
+            if curl -s -f http://localhost:7071/api/weeks?year=2025 > /dev/null 2>&1; then
+              echo "Functions is ready!"
+              break
+            fi
+            sleep 1
+            if [ $i -eq 60 ]; then
+              echo "Functions failed to start. Logs:"
+              cat /tmp/functions.log
+              exit 1
+            fi
+          done
+
+      - name: Start Blazor Web App
+        working-directory: src/AgainstTheSpread.Web
+        run: |
+          dotnet run --no-build --configuration Release --urls http://localhost:5158 > /tmp/web.log 2>&1 &
+          echo "Waiting for Web App to start..."
+          # Wait for Web App to be ready (up to 60 seconds)
+          for i in {1..60}; do
+            if curl -s -f http://localhost:5158 > /dev/null 2>&1; then
+              echo "Web App is ready!"
+              break
+            fi
+            sleep 1
+            if [ $i -eq 60 ]; then
+              echo "Web App failed to start. Logs:"
+              cat /tmp/web.log
+              exit 1
+            fi
+          done
+
+      - name: Run E2E tests
+        working-directory: tests
+        run: npm test
+        env:
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 7
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            tests/test-results/
+            /tmp/functions.log
+            /tmp/web.log
+          retention-days: 7
+
+      - name: Stop services
+        if: always()
+        run: |
+          pkill -9 func || true
+          pkill -9 dotnet || true
+          pkill -9 azurite || true

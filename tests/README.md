@@ -1,14 +1,20 @@
-# Against The Spread - Playwright Smoke Tests
+# Against The Spread - Playwright E2E Tests
 
-This directory contains end-to-end smoke tests for the Against The Spread application using Playwright and TypeScript.
+This directory contains end-to-end tests for the Against The Spread application using Playwright and TypeScript.
 
 ## Overview
 
-The smoke tests validate the complete user flow:
-1. **Environment Setup**: Starts Azurite, Azure Functions API, and Blazor Web App locally
-2. **Data Upload**: Uploads Week 11 and Week 12 test data to Azurite blob storage
-3. **User Flow**: Simulates a user making picks for both weeks
-4. **Validation**: Downloads and validates the generated Excel files
+The E2E tests validate the complete user flow:
+1. **Data Setup**: Uploads test data (Week 11 and Week 12) to Azurite blob storage
+2. **User Flow**: Simulates a user making picks for both weeks
+3. **Validation**: Downloads and validates the generated Excel files
+
+## Architecture
+
+The test architecture follows a **separation of concerns** approach:
+- **Service Management**: Services are started/stopped using the repository's `start-local.sh` and `stop-local.sh` scripts
+- **Test Execution**: Playwright tests focus only on browser automation and validation
+- **No Global Setup Complexity**: Tests assume services are already running
 
 ## Prerequisites
 
@@ -16,7 +22,7 @@ The smoke tests validate the complete user flow:
 - **npm** (comes with Node.js)
 - **.NET 8 SDK**
 - **Azure Functions Core Tools** (v4)
-- **Azurite** (installed via npm)
+- **Azurite** (installed via npm globally or as part of the project)
 
 ## Installation
 
@@ -33,29 +39,43 @@ The smoke tests validate the complete user flow:
 
 ## Running Tests
 
-### Run all tests
+### Step 1: Start Services
+
+From the **repository root**, start all services:
 ```bash
+./start-local.sh
+```
+
+Wait for all services to be ready:
+- Azurite (Storage): http://localhost:10000
+- Azure Functions: http://localhost:7071
+- Web App: http://localhost:5158
+
+### Step 2: Run Tests
+
+From the **tests** directory:
+```bash
+# Run all tests
 npm test
-```
 
-### Run with headed browser (visible UI)
-```bash
+# Run with visible browser
 npm run test:headed
-```
 
-### Debug tests
-```bash
+# Debug tests interactively
 npm run test:debug
-```
 
-### Run with UI mode (interactive)
-```bash
+# Run with Playwright UI mode
 npm run test:ui
+
+# View test report
+npm run test:report
 ```
 
-### View test report
+### Step 3: Stop Services
+
+From the **repository root**:
 ```bash
-npm run test:report
+./stop-local.sh
 ```
 
 ## Project Structure
@@ -63,29 +83,33 @@ npm run test:report
 ```
 tests/
 ├── helpers/
-│   ├── test-environment.ts    # Manages Azurite, Functions, Web App processes
-│   └── excel-validator.ts     # Validates Excel file structure
+│   ├── download-helper.ts    # Download handling utilities
+│   ├── excel-validator.ts    # Excel file validation
+│   ├── index.ts              # Helper exports
+│   └── test-environment.ts   # Test data upload to Azurite
+├── pages/
+│   ├── admin-page.ts         # Admin page object model
+│   └── picks-page.ts         # Picks page object model
 ├── specs/
-│   ├── week11.spec.ts         # Week 11 smoke test
-│   └── week12.spec.ts         # Week 12 smoke test
-├── global-setup.ts            # Global setup/teardown
-├── playwright.config.ts       # Playwright configuration
-├── package.json               # Dependencies
-├── tsconfig.json              # TypeScript configuration
-└── README.md                  # This file
+│   └── full-flow.spec.ts     # Main E2E test specification
+├── package.json              # Dependencies and scripts
+├── playwright.config.ts      # Playwright configuration
+├── tsconfig.json             # TypeScript configuration
+└── README.md                 # This file
 ```
 
 ## Test Flow
 
-Each smoke test follows this flow:
+Each test follows this flow:
 
-1. **Navigate** to the application
-2. **Enter** user name
-3. **Select** year (2025) and week (11 or 12)
-4. **Click** Continue to load games
-5. **Select** 6 games by clicking team buttons
-6. **Download** the Excel file
-7. **Validate** Excel structure:
+1. **Setup**: Upload test data to Azurite (Week 11 and Week 12 lines)
+2. **Navigate** to the picks page
+3. **Enter** user name
+4. **Select** year (2025) and week (11 or 12)
+5. **Click** Continue to load games
+6. **Select** 6 games by clicking team buttons
+7. **Download** the Excel file
+8. **Validate** Excel structure:
    - Row 1: Empty
    - Row 2: Empty
    - Row 3: Headers (Name, Pick 1-6)
@@ -95,62 +119,92 @@ Each smoke test follows this flow:
 
 The tests are configured in `playwright.config.ts`:
 
-- **Base URL**: `http://localhost:5158`
-- **Browser**: Chromium
-- **Retries**: 2 on CI, 0 locally
-- **Workers**: 1 (sequential execution)
-- **Traces**: On first retry
-- **Screenshots**: On failure
-- **Video**: On failure
+| Setting | Value | Description |
+|---------|-------|-------------|
+| Base URL | `http://localhost:5158` | Web app URL |
+| Browser | Chromium | Single browser for simplicity |
+| Retries | 2 (CI), 0 (local) | Auto-retry on CI |
+| Workers | 1 | Sequential test execution |
+| Traces | On first retry | Debug information |
+| Screenshots | On failure | Capture failures |
+| Video | On failure | Record failures |
 
 ## CI/CD Integration
 
-The tests run automatically on every pull request via GitHub Actions:
+The tests run automatically on pull requests via GitHub Actions:
 
-- Workflow file: `.github/workflows/smoke-tests.yml`
+- Workflow file: `.github/workflows/e2e-tests.yml`
 - Installs all dependencies (Azure Functions Core Tools, Azurite, Playwright)
+- Starts services using `start-local.sh`
 - Runs tests in CI environment
 - Uploads test results and traces as artifacts
 
 ## Troubleshooting
 
-### Tests fail to start services
+### Services not starting
 
-- Ensure ports 7071 (Functions), 5158 (Web), and 10000 (Azurite) are available
-- Check that .NET 8 SDK and Azure Functions Core Tools are installed
-- Try running services manually first to verify they work
+1. Check if ports are already in use:
+   ```bash
+   lsof -i :7071  # Functions
+   lsof -i :5158  # Web
+   lsof -i :10000 # Azurite
+   ```
 
-### Tests timeout waiting for services
+2. Kill existing processes:
+   ```bash
+   ./stop-local.sh
+   ```
 
-- Increase timeout in `test-environment.ts` `waitForService` method
-- Check service logs for startup errors
-- Ensure all dependencies are built (`dotnet build`)
+3. Rebuild if needed:
+   ```bash
+   dotnet build
+   ```
+
+### Tests timing out
+
+1. Increase timeouts in `playwright.config.ts`:
+   ```typescript
+   actionTimeout: 30000,
+   navigationTimeout: 60000,
+   ```
+
+2. Verify services are responding:
+   ```bash
+   curl http://localhost:7071/api/weeks?year=2025
+   curl http://localhost:5158
+   ```
 
 ### Excel validation fails
 
-- Check that the downloaded file exists in `/tmp`
-- Verify the Excel structure matches the expected format
-- Look at the test output for specific validation errors
+1. Check downloaded file exists in `/tmp/playwright-downloads/`
+2. Verify the Excel structure matches expected format
+3. Review test output for specific validation errors
+
+### No weeks available
+
+1. Ensure test data was uploaded to Azurite
+2. Check Azurite is running and accessible
+3. Verify the Functions can connect to Azurite
 
 ## Development
 
 ### Adding New Tests
 
-1. Create a new file in `specs/` directory (e.g., `week13.spec.ts`)
+1. Create a new file in `specs/` directory
 2. Import test utilities from `@playwright/test`
-3. Use `test.describe` and `test` to structure your tests
-4. Follow the existing test patterns
+3. Use page objects from `pages/` directory
+4. Follow existing test patterns
 
-### Modifying Test Environment
+### Modifying Page Objects
 
-Edit `helpers/test-environment.ts` to:
-- Change service startup logic
-- Modify upload behavior
-- Adjust timeouts and retries
+Edit files in `pages/` directory to:
+- Add new locators for UI elements
+- Create new interaction methods
+- Update selectors if UI changes
 
-### Custom Assertions
+### Custom Excel Validation
 
-Edit `helpers/excel-validator.ts` to add custom Excel validation logic.
+Edit `helpers/excel-validator.ts` to add custom validation logic.
 
 ## Resources
 
