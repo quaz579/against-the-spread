@@ -197,21 +197,23 @@ export class TestEnvironment {
     const excelBlobClient = containerClient.getBlockBlobClient(excelBlobName);
     await excelBlobClient.uploadFile(filePath);
 
-    // Create a simple JSON representation for the API
+    // Create a JSON representation that matches the C# WeeklyLines model
+    // Property names must match C# PascalCase for System.Text.Json serialization
     const jsonBlobName = `lines/week-${week}-${year}.json`;
     const jsonBlobClient = containerClient.getBlockBlobClient(jsonBlobName);
 
     const weeklyLinesJson = {
-      week: week,
-      year: year,
-      games: [
-        { favorite: 'Team A', line: -7.0, vsAt: 'vs', underdog: 'Team B', gameDate: new Date(), gameTime: '12:00 PM' },
-        { favorite: 'Team C', line: -3.5, vsAt: 'at', underdog: 'Team D', gameDate: new Date(), gameTime: '3:30 PM' },
-        { favorite: 'Team E', line: -10.0, vsAt: 'vs', underdog: 'Team F', gameDate: new Date(), gameTime: '7:00 PM' },
-        { favorite: 'Team G', line: -14.5, vsAt: 'at', underdog: 'Team H', gameDate: new Date(), gameTime: '8:00 PM' },
-        { favorite: 'Team I', line: -21.0, vsAt: 'vs', underdog: 'Team J', gameDate: new Date(), gameTime: '12:00 PM' },
-        { favorite: 'Team K', line: -6.5, vsAt: 'at', underdog: 'Team L', gameDate: new Date(), gameTime: '3:30 PM' },
-        { favorite: 'Team M', line: -4.0, vsAt: 'vs', underdog: 'Team N', gameDate: new Date(), gameTime: '7:00 PM' }
+      Week: week,
+      Year: year,
+      UploadedAt: new Date().toISOString(),
+      Games: [
+        { Favorite: 'Team A', Line: -7.0, VsAt: 'vs', Underdog: 'Team B', GameDate: new Date().toISOString() },
+        { Favorite: 'Team C', Line: -3.5, VsAt: 'at', Underdog: 'Team D', GameDate: new Date().toISOString() },
+        { Favorite: 'Team E', Line: -10.0, VsAt: 'vs', Underdog: 'Team F', GameDate: new Date().toISOString() },
+        { Favorite: 'Team G', Line: -14.5, VsAt: 'at', Underdog: 'Team H', GameDate: new Date().toISOString() },
+        { Favorite: 'Team I', Line: -21.0, VsAt: 'vs', Underdog: 'Team J', GameDate: new Date().toISOString() },
+        { Favorite: 'Team K', Line: -6.5, VsAt: 'at', Underdog: 'Team L', GameDate: new Date().toISOString() },
+        { Favorite: 'Team M', Line: -4.0, VsAt: 'vs', Underdog: 'Team N', GameDate: new Date().toISOString() }
       ]
     };
 
