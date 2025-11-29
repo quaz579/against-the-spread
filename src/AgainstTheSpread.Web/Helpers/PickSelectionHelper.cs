@@ -28,14 +28,14 @@ public static class PickSelectionHelper
 
         // Find the game this team belongs to
         var game = games?.FirstOrDefault(g =>
-            g.Favorite.Equals(team, StringComparison.OrdinalIgnoreCase) ||
-            g.Underdog.Equals(team, StringComparison.OrdinalIgnoreCase));
+            (g.Favorite?.Equals(team, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (g.Underdog?.Equals(team, StringComparison.OrdinalIgnoreCase) ?? false));
 
         // Get the opposite team from this game
         string? oppositeTeam = null;
         if (game != null)
         {
-            oppositeTeam = game.Favorite.Equals(team, StringComparison.OrdinalIgnoreCase)
+            oppositeTeam = (game.Favorite?.Equals(team, StringComparison.OrdinalIgnoreCase) ?? false)
                 ? game.Underdog
                 : game.Favorite;
         }
