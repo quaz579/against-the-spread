@@ -304,4 +304,38 @@ public class PickSelectionHelperTests
         selectedPicks.Should().HaveCount(3);
         selectedPicks.Should().Contain(new[] { "Georgia", "Michigan", "Texas" });
     }
+
+    [Fact]
+    public void TogglePick_DeselectsTeam_WhenCalledWithDifferentCase()
+    {
+        // Arrange
+        var selectedPicks = new List<string> { "alabama" };
+        var games = new List<Game>
+        {
+            new Game { Favorite = "Alabama", Underdog = "Georgia", Line = -7m }
+        };
+
+        // Act - Try to deselect with different casing
+        PickSelectionHelper.TogglePick("Alabama", selectedPicks, games);
+
+        // Assert - Should be empty (deselected despite case difference)
+        selectedPicks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TogglePick_AutoDeselectsOppositeTeam_WithMixedCase()
+    {
+        // Arrange - Opposite team stored with different case
+        var selectedPicks = new List<string> { "GEORGIA" };
+        var games = new List<Game>
+        {
+            new Game { Favorite = "Alabama", Underdog = "Georgia", Line = -7m }
+        };
+
+        // Act - Select Alabama, should deselect GEORGIA despite case mismatch
+        PickSelectionHelper.TogglePick("Alabama", selectedPicks, games);
+
+        // Assert - GEORGIA should be removed, Alabama added
+        selectedPicks.Should().ContainSingle().Which.Should().Be("Alabama");
+    }
 }

@@ -20,9 +20,11 @@ public static class PickSelectionHelper
         if (string.IsNullOrEmpty(team) || selectedPicks == null)
             return;
 
-        if (selectedPicks.Contains(team))
+        // Case-insensitive deselect check
+        var existingPick = selectedPicks.FirstOrDefault(p => p.Equals(team, StringComparison.OrdinalIgnoreCase));
+        if (existingPick != null)
         {
-            selectedPicks.Remove(team);
+            selectedPicks.Remove(existingPick);
             return;
         }
 
@@ -40,17 +42,20 @@ public static class PickSelectionHelper
                 : game.Favorite;
         }
 
-        // Check if selecting this team would require deselecting the opposite team
-        bool oppositeTeamSelected = oppositeTeam != null && selectedPicks.Contains(oppositeTeam);
+        // Check if selecting this team would require deselecting the opposite team (case-insensitive)
+        var oppositeTeamInList = oppositeTeam != null 
+            ? selectedPicks.FirstOrDefault(p => p.Equals(oppositeTeam, StringComparison.OrdinalIgnoreCase))
+            : null;
+        bool oppositeTeamSelected = oppositeTeamInList != null;
 
         // If opposite team is selected, we can switch (radio button behavior)
         // If opposite team is not selected, we need room for a new pick
         if (oppositeTeamSelected || selectedPicks.Count < maxPicks)
         {
             // Remove the opposite team if it's selected
-            if (oppositeTeamSelected && oppositeTeam != null)
+            if (oppositeTeamSelected && oppositeTeamInList != null)
             {
-                selectedPicks.Remove(oppositeTeam);
+                selectedPicks.Remove(oppositeTeamInList);
             }
 
             selectedPicks.Add(team);
