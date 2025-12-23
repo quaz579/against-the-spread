@@ -178,7 +178,7 @@ public class UploadLinesFunction
             {
                 // Try UserDetails property - Google OAuth in SWA often stores email here
                 userEmail = principal.UserDetails;
-                _logger.LogInformation("Email retrieved from UserDetails for user {UserId}", principal.UserId);
+                _logger.LogInformation("Email {Email} retrieved from UserDetails for user {UserId}", userEmail, principal.UserId);
             }
 
             if (string.IsNullOrEmpty(userEmail))
