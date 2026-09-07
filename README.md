@@ -73,90 +73,43 @@ If you prefer to install tools manually:
 - Azure Static Web Apps CLI: `npm install -g @azure/static-web-apps-cli`
 - Azure subscription (free tier works)
 
-#### Environment Setup
+#### Environment setup
 
-1. **Clone the repository**
+1. **Clone and install test dependencies**
    ```bash
    git clone https://github.com/quaz579/against-the-spread.git
    cd against-the-spread
+   cd tests && npm ci && cd ..
    ```
 
-2. **Create .env file** (for local development)
-   ```bash
-   # Create .env in the root directory with:
-   GOOGLE_CLIENT_ID=your-google-client-id
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
-   ADMIN_EMAILS=your-admin-email@example.com
-   ```
+2. **Configure application-owned Google authentication**
+   - Use a Google Web application OAuth client.
+   - Add the exact site origin under **Authorized JavaScript origins**; the GIS callback flow does not use an SWA redirect URI.
+   - Configure `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`, and `AZURE_STORAGE_CONNECTION_STRING` on the managed API.
+   - Do not send Google credentials in `Authorization`; the client and API use `X-Google-ID-Token` because SWA rewrites `Authorization`.
+   - `GOOGLE_CLIENT_SECRET` is not used by this flow.
 
-3. **Configure Google OAuth** (see `GOOGLE_AUTH_SETUP.md` for detailed instructions)
-   - Create OAuth 2.0 Client in Google Cloud Console
-   - Add redirect URIs:
-     - `https://your-swa-hostname.azurestaticapps.net/.auth/login/google/callback` (production)
-     - `http://localhost:4280/.auth/login/google/callback` (local dev)
+3. **Deploy through the original GitHub Actions workflow**
+   - Pull requests and `main`/`dev` pushes run .NET, TypeScript, and Playwright gates before deployment.
+   - The production workflow retains the original Static Web App deployment-token binding.
+   - Existing production infrastructure is not safely represented by the historical Terraform in this repository; do not apply it to update production.
 
-4. **Configure Azure resources**
-   ```bash
-   # Create resource group
-   az group create --name rg-against-the-spread --location centralus
+See [CONSOLIDATION_RUNBOOK.md](CONSOLIDATION_RUNBOOK.md) for the authoritative production resource identities, backup, deployment, E2E, rollback, and retirement gates.
 
-   # Create storage account
-   az storage account create \
-     --name stprdagnstthesprd \
-     --resource-group rg-against-the-spread \
-     --location centralus \
-     --sku Standard_LRS
+### Local development and E2E
 
-   # Create blob container
-   az storage container create \
-     --name weeklypicks \
-     --account-name stprdagnstthesprd
-   ```
+The supported local integration path starts Azurite, Functions, Blazor, and the SWA proxy:
 
-5. **Deploy Azure Static Web App** (via GitHub Actions)
-   - Push to `main` branch for production
-   - Push to `dev` branch for staging environment
-   - GitHub Actions will automatically build and deploy
+```bash
+./start-e2e.sh
+cd tests
+npm exec -- tsc -p tsconfig.json --noEmit
+npm test
+cd ..
+./stop-e2e.sh
+```
 
-6. **Configure SWA App Settings** (for production/staging)
-   ```bash
-   az staticwebapp appsettings set \
-     --name swa-against-the-spread \
-     --setting-names \
-       GOOGLE_CLIENT_ID="your-client-id" \
-       GOOGLE_CLIENT_SECRET="your-client-secret" \
-       ADMIN_EMAILS="admin@example.com" \
-       AZURE_STORAGE_CONNECTION_STRING="your-connection-string"
-   ```
-
-### Local Development
-
-Run the app locally with authentication emulation:
-
-1. **Publish the Blazor app** (generates static files)
-   ```bash
-   dotnet publish src/AgainstTheSpread.Web -c Debug
-   ```
-
-2. **Load environment variables and start SWA CLI**
-   ```bash
-   export $(cat .env | xargs)
-   swa start src/AgainstTheSpread.Web/bin/Debug/net8.0/publish/wwwroot \
-     --api-location src/AgainstTheSpread.Functions
-   ```
-
-3. **Access the app**
-   - Web app: `http://localhost:4280`
-   - API: `http://localhost:4280/api`
-   - Functions (direct): `http://localhost:7071/api`
-
-4. **Test authentication locally**
-   - SWA CLI provides mock authentication at `http://localhost:4280/.auth/login/google`
-   - For real Google OAuth testing, ensure redirect URI includes `http://localhost:4280/.auth/login/google/callback` in Google Console
-
-**Note**: The Blazor app must be published (not just built) for the SWA CLI to serve it correctly. The publish step generates the static files in `bin/Debug/net8.0/publish/wwwroot/`.
-
-See `LOCAL_DEV_AUTH.md` for detailed authentication testing instructions.
+Browser fixture flows seed only local Azurite and never bypass production authorization. Real Google token validation must be tested separately with a registered local JavaScript origin and an allowlisted account. See `LOCAL_DEV_AUTH.md` and `tests/README.md`.
 
 ### Run Tests
 
@@ -205,29 +158,7 @@ The project follows a Test-Driven Development (TDD) approach:
 
 ## 🚢 Deployment
 
-### Deploy Infrastructure
-
-```bash
-cd infrastructure/terraform
-terraform init
-terraform apply -var-file="environments/dev.tfvars"
-```
-
-### Deploy Application
-
-Deployments are automated via GitHub Actions on merge to `main`.
-
-Manual deployment:
-```bash
-# Deploy Functions
-cd src/AgainstTheSpread.Functions
-func azure functionapp publish <function-app-name>
-
-# Deploy Web App
-cd src/AgainstTheSpread.Web
-dotnet publish -c Release
-# Upload to Azure Static Web Apps
-```
+Deployments are automated through the original Azure Static Web Apps workflow after its validation job passes. The checked-in Terraform is historical and must not be applied to the live production topology. Follow [CONSOLIDATION_RUNBOOK.md](CONSOLIDATION_RUNBOOK.md) for the verified resource identity, backup, deployment, rollback, and acceptance gates.
 
 ## 📱 PWA Installation
 
@@ -273,11 +204,11 @@ az storage blob upload \
 ## 🔒 Security
 
 - HTTPS enforced for all connections
-- CORS configured for known origins
 - Input validation on all endpoints
 - File upload size limits enforced
-- Rate limiting on API endpoints
-- No authentication required for MVP (trust-based)
+- Weekly and bowl read/generation APIs are public
+- Admin identity and upload APIs require a Google ID token whose audience, verified email, and allowlist membership are validated by the Functions
+- Protected tokens are scoped to individual same-origin requests and are not persisted in browser storage
 
 ## 💰 Cost Analysis
 

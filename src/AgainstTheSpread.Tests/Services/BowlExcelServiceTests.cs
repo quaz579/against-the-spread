@@ -179,9 +179,9 @@ public class BowlExcelServiceTests
             TotalGames = 3,
             Picks = new List<BowlPick>
             {
-                new BowlPick { GameNumber = 1, SpreadPick = "Alabama", ConfidencePoints = 1, OutrightWinner = "Alabama" },
-                new BowlPick { GameNumber = 2, SpreadPick = "Georgia", ConfidencePoints = 2, OutrightWinner = "Georgia" },
-                new BowlPick { GameNumber = 3, SpreadPick = "Ohio State", ConfidencePoints = 3, OutrightWinner = "Ohio State" }
+                new BowlPick { GameNumber = 1, SpreadPick = "Alabama", ConfidencePoints = 1, OutrightWinner = "Georgia" },
+                new BowlPick { GameNumber = 2, SpreadPick = "Georgia", ConfidencePoints = 2, OutrightWinner = "Alabama" },
+                new BowlPick { GameNumber = 3, SpreadPick = "Ohio State", ConfidencePoints = 3, OutrightWinner = "Michigan" }
             }
         };
 
@@ -198,8 +198,11 @@ public class BowlExcelServiceTests
         worksheet.Cells[1, 2].Value.Should().Be("John Doe");
         worksheet.Cells[4, 2].Value.Should().Be("Alabama");
         worksheet.Cells[4, 3].Value.Should().Be(1);
+        worksheet.Cells[4, 4].Value.Should().Be("Georgia");
         worksheet.Cells[5, 2].Value.Should().Be("Georgia");
+        worksheet.Cells[5, 4].Value.Should().Be("Alabama");
         worksheet.Cells[6, 2].Value.Should().Be("Ohio State");
+        worksheet.Cells[6, 4].Value.Should().Be("Michigan");
     }
 
     [Fact]

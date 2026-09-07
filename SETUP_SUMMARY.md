@@ -54,7 +54,7 @@ Added a prominent section at the top linking to the Copilot environment setup.
 ### Pre-installed Tools
 The dev container includes all necessary tools:
 - **.NET 8 SDK** - For building Blazor and Azure Functions
-- **Node.js 20** - For Playwright tests and tooling
+- **Node.js 22** - For Playwright tests and tooling
 - **Azure Functions Core Tools v4** - For running Functions locally
 - **Azurite** - Azure Storage Emulator (no Azure subscription needed)
 - **Playwright** - With Chromium browser pre-installed
@@ -192,7 +192,7 @@ When you open the dev container, the `setup.sh` script automatically:
 2. ✅ Installs Azurite globally via npm
 3. ✅ Restores all .NET dependencies (`dotnet restore`)
 4. ✅ Builds the .NET solution (`dotnet build`)
-5. ✅ Installs test dependencies (`npm install` in tests/)
+5. ✅ Installs test dependencies (`npm ci` in tests/)
 6. ✅ Installs Playwright browsers (`npx playwright install chromium`)
 7. ✅ Creates `local.settings.json` for Azure Functions
 8. ✅ Makes startup scripts executable
@@ -203,7 +203,7 @@ When you open the dev container, the `setup.sh` script automatically:
 
 The dev container matches the CI environment exactly:
 - Same .NET version (8.0)
-- Same Node.js version (20)
+- Same Node.js version (22)
 - Same Azure Functions Core Tools version (v4)
 - Same Azurite version
 - Same Playwright version
@@ -248,7 +248,7 @@ dotnet build
 # Reinstall test dependencies
 cd tests
 rm -rf node_modules
-npm install
+npm ci
 npx playwright install chromium
 ```
 
@@ -278,7 +278,7 @@ dotnet build
 **Node.js packages:**
 ```bash
 cd tests
-npm install
+npm ci
 npm audit fix
 ```
 

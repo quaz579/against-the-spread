@@ -30,7 +30,7 @@ dotnet build --configuration Debug
 # Install test dependencies
 echo "📦 Installing test dependencies..."
 cd tests
-npm install
+npm ci
 
 # Install Playwright browsers
 echo "🎭 Installing Playwright browsers..."

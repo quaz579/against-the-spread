@@ -6,7 +6,7 @@ This development container provides a complete, pre-configured environment for d
 
 ### Tools & Runtimes
 - **.NET 8 SDK** - For building the Blazor app and Azure Functions
-- **Node.js 20** - For running Playwright tests and Azurite
+- **Node.js 22** - For running Playwright tests and Azurite
 - **Azure Functions Core Tools v4** - For running the Functions API locally
 - **Azurite** - Azure Storage Emulator for local blob storage
 - **Azure CLI** - For managing Azure resources
@@ -272,7 +272,7 @@ dotnet test src/AgainstTheSpread.Tests/AgainstTheSpread.Tests.csproj
 The dev container matches the CI environment configured in `.github/workflows/smoke-tests.yml`:
 
 - ✅ Same .NET version (8.0)
-- ✅ Same Node.js version (20)
+- ✅ Same Node.js version (22)
 - ✅ Same Azure Functions Core Tools (v4)
 - ✅ Same Azurite version
 - ✅ Same Playwright version

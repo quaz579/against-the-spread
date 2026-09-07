@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start all services needed for E2E testing with SWA CLI mock authentication
+# Start all services needed for local E2E testing
 # This script starts Azurite, Azure Functions, Blazor Web App (with E2E config), and SWA CLI
 
 set -e
@@ -44,7 +44,7 @@ else
     cd "$SCRIPT_DIR/src/AgainstTheSpread.Functions"
     # Export ADMIN_EMAILS for E2E testing
     export ADMIN_EMAILS="test-admin@example.com"
-    func start --port 7071 > /tmp/func-e2e.log 2>&1 &
+    func start --dotnet-isolated --port 7071 > /tmp/func-e2e.log 2>&1 &
     cd "$SCRIPT_DIR"
     
     # Wait for Functions to be ready

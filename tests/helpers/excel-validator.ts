@@ -126,96 +126,210 @@ export async function getPicksFromExcel(filePath: string): Promise<string[]> {
 }
 
 /**
+ * A bowl pick captured from the browser and expected in the workbook.
+ */
+export interface ExpectedBowlPick {
+  gameNumber: number;
+  spreadPick: string;
+  confidence: number;
+  outrightWinner: string;
+}
+
+/**
  * Bowl picks validation result
  */
 export interface BowlValidationResult {
   isValid: boolean;
   errors: string[];
-  gameCount?: number;
-  confidenceSum?: number;
-  expectedConfidenceSum?: number;
+  gameCount: number;
+  confidenceSum: number;
+  expectedConfidenceSum: number;
+}
+
+const BOWL_HEADERS = ['Game #', 'Winner vs Spread', 'Confidence', 'Outright Winner'] as const;
+
+function isBlankCellValue(value: unknown): boolean {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+}
+
+function rowHasAnyValue(row: ExcelJS.Row): boolean {
+  let hasValue = false;
+  row.eachCell({ includeEmpty: false }, cell => {
+    if (!isBlankCellValue(cell.value)) {
+      hasValue = true;
+    }
+  });
+  return hasValue;
+}
+
+function rowHasGameData(row: ExcelJS.Row): boolean {
+  return [1, 2, 3, 4].some(column => !isBlankCellValue(row.getCell(column).value));
+}
+
+function observedValue(value: unknown): string {
+  return isBlankCellValue(value) ? '<blank>' : String(value);
 }
 
 /**
- * Validates a bowl picks Excel file
- * Expected structure based on bowl template:
- * - Row with headers
- * - Rows with user picks including: Name, Spread Pick, Confidence, Outright Winner
- * 
- * @param filePath - Path to the Excel file to validate
- * @param expectedName - Expected name in the picks file
- * @param expectedGameCount - Number of games expected
- * @returns Validation result with errors if any
+ * Validates the exact bowl workbook schema and browser-submitted selections.
  */
 export async function validateBowlPicksExcel(
   filePath: string,
   expectedName: string,
-  expectedGameCount: number
+  expectedPicks: readonly ExpectedBowlPick[]
 ): Promise<BowlValidationResult> {
   const errors: string[] = [];
-  
+  const expectedGameCount = expectedPicks.length;
+  const expectedConfidenceSum = (expectedGameCount * (expectedGameCount + 1)) / 2;
+  let gameCount = 0;
+  let confidenceSum = 0;
+
   try {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
-    
+
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
-      return { isValid: false, errors: ['No worksheet found in Excel file'] };
+      return {
+        isValid: false,
+        errors: ['No worksheet found in Excel file'],
+        gameCount,
+        confidenceSum,
+        expectedConfidenceSum
+      };
     }
-    
-    // Bowl picks structure may vary based on template
-    // Look for key elements:
-    // 1. User name present
-    // 2. Has game picks (spread picks and outright winners)
-    // 3. Has confidence points
-    
-    let foundName = false;
-    let gameCount = 0;
-    let confidenceSum = 0;
-    const expectedConfidenceSum = (expectedGameCount * (expectedGameCount + 1)) / 2;
-    
-    // Scan the worksheet for data
-    worksheet.eachRow((row, rowNumber) => {
-      const values = row.values as (string | number | undefined)[];
-      if (values) {
-        // Check for name
-        for (const val of values) {
-          if (val && typeof val === 'string' && val === expectedName) {
-            foundName = true;
-          }
-        }
-        
-        // Check for confidence points (numeric values between 1 and expectedGameCount)
-        for (const val of values) {
-          if (typeof val === 'number' && val >= 1 && val <= expectedGameCount) {
-            confidenceSum += val;
-            gameCount++;
-          }
-        }
+
+    const nameLabel = worksheet.getCell('A1').value;
+    if (nameLabel !== 'Name:') {
+      errors.push(`A1 should be "Name:" but was "${observedValue(nameLabel)}"`);
+    }
+
+    const actualName = worksheet.getCell('B1').value;
+    if (actualName !== expectedName) {
+      errors.push(`B1 name should be "${expectedName}" but was "${observedValue(actualName)}"`);
+    }
+
+    if (rowHasAnyValue(worksheet.getRow(2))) {
+      errors.push('Row 2 should be empty');
+    }
+
+    BOWL_HEADERS.forEach((expectedHeader, index) => {
+      const cell = worksheet.getRow(3).getCell(index + 1);
+      if (cell.value !== expectedHeader) {
+        errors.push(
+          `Header ${cell.address} should be "${expectedHeader}" but was "${observedValue(cell.value)}"`
+        );
       }
     });
-    
-    if (!foundName) {
-      errors.push(`Expected name "${expectedName}" not found in Excel file`);
+
+    const gameRows: ExcelJS.Row[] = [];
+    for (let rowNumber = 4; rowNumber <= worksheet.rowCount; rowNumber++) {
+      const row = worksheet.getRow(rowNumber);
+      if (!rowHasGameData(row)) {
+        break;
+      }
+      gameRows.push(row);
     }
-    
-    // Basic validation - just check file was created with some data
-    if (worksheet.rowCount < 2) {
-      errors.push(`Excel file appears empty or has insufficient data`);
+    gameCount = gameRows.length;
+
+    if (gameCount !== expectedGameCount) {
+      errors.push(`Expected ${expectedGameCount} contiguous game rows but found ${gameCount}`);
     }
-    
+
+    const confidenceValues: number[] = [];
+    gameRows.forEach((row, index) => {
+      const requiredGameNumber = index + 1;
+      const actualGameNumber = row.getCell(1).value;
+      if (actualGameNumber !== requiredGameNumber) {
+        errors.push(
+          `Game row ${row.number} number should be ${requiredGameNumber} but was ${observedValue(actualGameNumber)}`
+        );
+      }
+
+      const confidence = row.getCell(3).value;
+      if (typeof confidence === 'number') {
+        confidenceValues.push(confidence);
+        confidenceSum += confidence;
+      }
+
+      const expectedPick = expectedPicks[index];
+      if (!expectedPick) {
+        return;
+      }
+
+      const spreadPick = row.getCell(2).value;
+      if (typeof spreadPick !== 'string' || spreadPick.trim() === '') {
+        errors.push(`Game ${expectedPick.gameNumber} spread pick is blank`);
+      } else if (spreadPick !== expectedPick.spreadPick) {
+        errors.push(
+          `Game ${expectedPick.gameNumber} spread pick should be "${expectedPick.spreadPick}" but was "${spreadPick}"`
+        );
+      }
+
+      if (confidence !== expectedPick.confidence) {
+        errors.push(
+          `Game ${expectedPick.gameNumber} confidence should be ${expectedPick.confidence} but was ${typeof confidence === 'number' ? confidence : 'not numeric'}`
+        );
+      }
+
+      const outrightWinner = row.getCell(4).value;
+      if (typeof outrightWinner !== 'string' || outrightWinner.trim() === '') {
+        errors.push(`Game ${expectedPick.gameNumber} outright winner is blank`);
+      } else if (outrightWinner !== expectedPick.outrightWinner) {
+        errors.push(
+          `Game ${expectedPick.gameNumber} outright winner should be "${expectedPick.outrightWinner}" but was "${outrightWinner}"`
+        );
+      }
+    });
+
+    const sortedConfidenceValues = [...confidenceValues].sort((left, right) => left - right);
+    const hasExpectedConfidenceSet = sortedConfidenceValues.length === expectedGameCount
+      && sortedConfidenceValues.every((confidence, index) => confidence === index + 1);
+    if (!hasExpectedConfidenceSet) {
+      errors.push(
+        `Confidence values must be the unique set 1..${expectedGameCount}; observed [${confidenceValues.join(', ')}]`
+      );
+    }
+
+    if (confidenceSum !== expectedConfidenceSum) {
+      errors.push(`Confidence sum should be ${expectedConfidenceSum} but was ${confidenceSum}`);
+    }
+
+    const blankRowNumber = 4 + expectedGameCount;
+    if (rowHasAnyValue(worksheet.getRow(blankRowNumber))) {
+      errors.push(`Row ${blankRowNumber} should be empty after the game rows`);
+    }
+
+    const totalRowNumber = blankRowNumber + 1;
+    const totalLabel = worksheet.getRow(totalRowNumber).getCell(2).value;
+    if (totalLabel !== 'Total Confidence:') {
+      errors.push(
+        `B${totalRowNumber} should be "Total Confidence:" but was "${observedValue(totalLabel)}"`
+      );
+    }
+
+    const totalFormulaCell = worksheet.getRow(totalRowNumber).getCell(3);
+    const expectedFormula = `SUM(C4:C${3 + expectedGameCount})`;
+    if (totalFormulaCell.formula !== expectedFormula) {
+      errors.push(
+        `C${totalRowNumber} formula should be "${expectedFormula}" but was "${observedValue(totalFormulaCell.formula)}"`
+      );
+    }
+
     return {
       isValid: errors.length === 0,
       errors,
-      gameCount: gameCount > 0 ? Math.min(gameCount, expectedGameCount) : expectedGameCount,
-      confidenceSum: confidenceSum > 0 ? confidenceSum : expectedConfidenceSum,
+      gameCount,
+      confidenceSum,
       expectedConfidenceSum
     };
-    
   } catch (error) {
     return {
       isValid: false,
-      errors: [`Failed to read Excel file: ${error}`]
+      errors: [`Failed to read Excel file: ${error}`],
+      gameCount,
+      confidenceSum,
+      expectedConfidenceSum
     };
   }
 }
