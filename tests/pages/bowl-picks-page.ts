@@ -109,14 +109,16 @@ export class BowlPicksPage {
     const gameCard = this.gameCards.nth(gameNumber - 1);
     const spreadButtons = gameCard.locator('label:has-text("Spread Pick") ~ .btn-group-vertical button');
     const selectedButton = pickFavorite ? spreadButtons.first() : spreadButtons.last();
-    const selectedLabel = (await selectedButton.innerText()).replace(/\s+/g, ' ').trim();
+    const outrightButtons = gameCard.locator('label:has-text("Outright Winner") ~ .btn-group-vertical button');
+    const selectedTeamButton = pickFavorite ? outrightButtons.first() : outrightButtons.last();
+    const selectedTeam = (await selectedTeamButton.innerText()).replace(/\s+/g, ' ').trim();
 
-    if (!selectedLabel) {
-      throw new Error(`Game ${gameNumber} spread button has no label`);
+    if (!selectedTeam) {
+      throw new Error(`Game ${gameNumber} spread selection has no team label`);
     }
 
     await selectedButton.click();
-    return selectedLabel;
+    return selectedTeam;
   }
 
   /**
@@ -157,29 +159,18 @@ export class BowlPicksPage {
 
   /**
    * Make complete picks for all games and return the exact submitted values.
-   * The rendered favorite spread label includes the line, while the submitted
-   * workbook value is the team name shared with the matching winner button.
+   * Spread and outright selections deliberately differ so the downloaded
+   * workbook must preserve both fields independently.
    * @param totalGames - Number of games to make picks for
    */
   async makeAllPicks(totalGames: number): Promise<ExpectedBowlPick[]> {
     const submittedPicks: ExpectedBowlPick[] = [];
 
     for (let i = 1; i <= totalGames; i++) {
-      const pickFavorite = i % 2 === 1;
-      const spreadButtonLabel = await this.selectSpreadPick(i, pickFavorite);
+      const pickFavoriteAgainstSpread = i % 2 === 1;
+      const spreadPick = await this.selectSpreadPick(i, pickFavoriteAgainstSpread);
       const confidence = await this.selectConfidence(i, i);
-      const outrightWinner = await this.selectOutrightWinner(i, pickFavorite);
-
-      let spreadPick: string;
-      if (spreadButtonLabel === outrightWinner) {
-        spreadPick = spreadButtonLabel;
-      } else if (spreadButtonLabel.startsWith(`${outrightWinner} `)) {
-        spreadPick = spreadButtonLabel.slice(0, outrightWinner.length);
-      } else {
-        throw new Error(
-          `Game ${i} spread button "${spreadButtonLabel}" does not identify selected team "${outrightWinner}"`
-        );
-      }
+      const outrightWinner = await this.selectOutrightWinner(i, !pickFavoriteAgainstSpread);
 
       submittedPicks.push({
         gameNumber: i,

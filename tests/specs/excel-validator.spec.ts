@@ -7,8 +7,8 @@ import { type ExpectedBowlPick, validateBowlPicksExcel } from '../helpers/excel-
 
 const EXPECTED_NAME = 'Bowl Validator Test User';
 const EXPECTED_PICKS: readonly ExpectedBowlPick[] = [
-  { gameNumber: 1, spreadPick: 'Falcons', confidence: 1, outrightWinner: 'Falcons' },
-  { gameNumber: 2, spreadPick: 'Bears', confidence: 2, outrightWinner: 'Bears' }
+  { gameNumber: 1, spreadPick: 'Falcons', confidence: 1, outrightWinner: 'Hawks' },
+  { gameNumber: 2, spreadPick: 'Bears', confidence: 2, outrightWinner: 'Wolves' }
 ];
 let tempDir: string;
 
@@ -26,8 +26,8 @@ function populateValidWorksheet(worksheet: ExcelJS.Worksheet): void {
   worksheet.getCell('A1').value = 'Name:';
   worksheet.getCell('B1').value = EXPECTED_NAME;
   worksheet.getRow(3).values = ['Game #', 'Winner vs Spread', 'Confidence', 'Outright Winner'];
-  worksheet.getRow(4).values = [1, 'Falcons', 1, 'Falcons'];
-  worksheet.getRow(5).values = [2, 'Bears', 2, 'Bears'];
+  worksheet.getRow(4).values = [1, 'Falcons', 1, 'Hawks'];
+  worksheet.getRow(5).values = [2, 'Bears', 2, 'Wolves'];
   worksheet.getCell('B7').value = 'Total Confidence:';
   worksheet.getCell('C7').value = { formula: 'SUM(C4:C5)', result: 3 };
 }
@@ -126,15 +126,15 @@ test('rejects a spread pick that differs from the expected browser selection', a
   expect(result.errors).toContain('Game 1 spread pick should be "Falcons" but was "Hawks"');
 });
 
-test('rejects an outright winner that differs from the expected browser selection', async () => {
+test('rejects an outright winner that is incorrectly copied from the spread selection', async () => {
   const filePath = await writeWorkbook(worksheet => {
     populateValidWorksheet(worksheet);
-    worksheet.getCell('D4').value = 'Hawks';
+    worksheet.getCell('D4').value = 'Falcons';
   });
 
   const result = await validateBowlPicksExcel(filePath, EXPECTED_NAME, EXPECTED_PICKS);
 
-  expect(result.errors).toContain('Game 1 outright winner should be "Falcons" but was "Hawks"');
+  expect(result.errors).toContain('Game 1 outright winner should be "Hawks" but was "Falcons"');
 });
 
 test('rejects a confidence value assigned to the wrong game', async () => {
