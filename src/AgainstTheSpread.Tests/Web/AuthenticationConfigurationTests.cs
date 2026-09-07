@@ -70,6 +70,7 @@ public class AuthenticationConfigurationTests
 
         adminSource.Should().NotContain("/.auth/");
         serviceWorker.Should().NotContain("/.auth/");
+        serviceWorker.Should().Contain("/^staticwebapp\\.config\\.json$/");
         (adminSource + gisSource).Should().NotContain("localStorage");
         (adminSource + gisSource).Should().NotContain("sessionStorage");
         (adminSource + gisSource).Should().NotContain("document.cookie");
