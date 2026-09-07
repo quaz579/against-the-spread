@@ -1,6 +1,7 @@
 name: Azure Static Web Apps CI/CD
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -11,67 +12,77 @@ on:
       - main
       - dev
 
+permissions:
+  contents: read
+
 jobs:
-  build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+  validate:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
-    permissions:
-      id-token: write
-      contents: read
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Install Azurite upload-integration dependency
+        run: npm install --global azurite
+      - name: Restore and test .NET
+        run: |
+          dotnet restore AgainstTheSpread.sln
+          dotnet test AgainstTheSpread.sln -c Release --no-restore
+      - name: Install browser test dependencies
+        run: |
+          cd tests
+          npm ci
+          npm exec -- tsc -p tsconfig.json --noEmit
+          npx playwright install --with-deps chromium
+          npm install --global @azure/static-web-apps-cli azure-functions-core-tools@4
+      - name: Run browser flows
+        env:
+          CI: true
+        run: |
+          ./start-e2e.sh
+          cd tests
+          npm test
+      - name: Stop browser services
+        if: always()
+        run: ./stop-e2e.sh
+
+  build_and_deploy_job:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: validate
+    runs-on: ubuntu-latest
+    name: Build and Deploy Original Static Web App
+    steps:
+      - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-          script: |
-            const coredemo = require('@actions/core')
-            return await coredemo.getIDToken()
-          result-encoding: string
-      - name: Build And Deploy
+      - name: Build and deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_RIVER_0E2F38010 }}
-          action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "./src/AgainstTheSpread.Web" # App source code path
-          api_location: "./src/AgainstTheSpread.Functions" # Api source code path - optional
-          output_location: "wwwroot" # Built app content directory - optional
-          github_id_token: ${{ steps.idtoken.outputs.result }}
-          ###### End of Repository/Build Configurations ######
+          action: upload
+          app_location: ./src/AgainstTheSpread.Web
+          api_location: ./src/AgainstTheSpread.Functions
+          output_location: wwwroot
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    permissions:
-       id-token: write
-       contents: read
+    name: Close Pull Request Environment
     steps:
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
-      - name: Close Pull Request
-        id: closepullrequest
+      - name: Close pull request environment
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_RIVER_0E2F38010 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          app_location: "."
-          action: "close"
-          github_id_token: ${{ steps.idtoken.outputs.result }}
+          app_location: .
+          action: close

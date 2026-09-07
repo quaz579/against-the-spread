@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install Azure Functions Core Tools
         run: |
@@ -47,7 +47,7 @@ jobs:
       - name: Install Playwright test dependencies
         working-directory: tests
         run: |
-          npm install
+          npm ci
           npx playwright install --with-deps chromium
 
       - name: Create local.settings.json for Functions

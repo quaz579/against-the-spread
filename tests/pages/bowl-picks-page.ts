@@ -1,4 +1,5 @@
 import { Locator, Page } from '@playwright/test';
+import type { ExpectedBowlPick } from '../helpers/excel-validator';
 
 /**
  * Page Object Model for the Bowl Picks page
@@ -23,6 +24,7 @@ export class BowlPicksPage {
   // Game selection elements (each game has spread pick, confidence dropdown, and outright winner)
   readonly gameCards: Locator;
   readonly downloadButton: Locator;
+  readonly generatedDownloadButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -43,6 +45,7 @@ export class BowlPicksPage {
     // Game selection elements
     this.gameCards = page.locator('.card').filter({ has: page.locator('.card-header') });
     this.downloadButton = page.getByRole('button', { name: /Generate Bowl Picks Excel/ });
+    this.generatedDownloadButton = page.getByRole('button', { name: /Download File/ });
   }
 
   /**
@@ -102,15 +105,18 @@ export class BowlPicksPage {
    * @param gameNumber - Game number (1-indexed)
    * @param pickFavorite - true to pick favorite, false to pick underdog
    */
-  async selectSpreadPick(gameNumber: number, pickFavorite: boolean): Promise<void> {
+  async selectSpreadPick(gameNumber: number, pickFavorite: boolean): Promise<string> {
     const gameCard = this.gameCards.nth(gameNumber - 1);
     const spreadButtons = gameCard.locator('label:has-text("Spread Pick") ~ .btn-group-vertical button');
-    
-    if (pickFavorite) {
-      await spreadButtons.first().click();
-    } else {
-      await spreadButtons.last().click();
+    const selectedButton = pickFavorite ? spreadButtons.first() : spreadButtons.last();
+    const selectedLabel = (await selectedButton.innerText()).replace(/\s+/g, ' ').trim();
+
+    if (!selectedLabel) {
+      throw new Error(`Game ${gameNumber} spread button has no label`);
     }
+
+    await selectedButton.click();
+    return selectedLabel;
   }
 
   /**
@@ -118,10 +124,16 @@ export class BowlPicksPage {
    * @param gameNumber - Game number (1-indexed)
    * @param confidence - Confidence points to assign
    */
-  async selectConfidence(gameNumber: number, confidence: number): Promise<void> {
+  async selectConfidence(gameNumber: number, confidence: number): Promise<number> {
     const gameCard = this.gameCards.nth(gameNumber - 1);
     const confidenceSelect = gameCard.locator('select.form-select');
     await confidenceSelect.selectOption(confidence.toString());
+
+    const selectedConfidence = Number(await confidenceSelect.inputValue());
+    if (!Number.isInteger(selectedConfidence)) {
+      throw new Error(`Game ${gameNumber} confidence selection is not numeric`);
+    }
+    return selectedConfidence;
   }
 
   /**
@@ -129,36 +141,58 @@ export class BowlPicksPage {
    * @param gameNumber - Game number (1-indexed)
    * @param pickFavorite - true to pick favorite, false to pick underdog
    */
-  async selectOutrightWinner(gameNumber: number, pickFavorite: boolean): Promise<void> {
+  async selectOutrightWinner(gameNumber: number, pickFavorite: boolean): Promise<string> {
     const gameCard = this.gameCards.nth(gameNumber - 1);
     const outrightButtons = gameCard.locator('label:has-text("Outright Winner") ~ .btn-group-vertical button');
-    
-    if (pickFavorite) {
-      await outrightButtons.first().click();
-    } else {
-      await outrightButtons.last().click();
+    const selectedButton = pickFavorite ? outrightButtons.first() : outrightButtons.last();
+    const selectedLabel = (await selectedButton.innerText()).replace(/\s+/g, ' ').trim();
+
+    if (!selectedLabel) {
+      throw new Error(`Game ${gameNumber} outright-winner button has no label`);
     }
+
+    await selectedButton.click();
+    return selectedLabel;
   }
 
   /**
-   * Make complete picks for all games
-   * Each game gets: spread pick (favorite), unique confidence, and outright winner (favorite)
+   * Make complete picks for all games and return the exact submitted values.
+   * The rendered favorite spread label includes the line, while the submitted
+   * workbook value is the team name shared with the matching winner button.
    * @param totalGames - Number of games to make picks for
    */
-  async makeAllPicks(totalGames: number): Promise<void> {
+  async makeAllPicks(totalGames: number): Promise<ExpectedBowlPick[]> {
+    const submittedPicks: ExpectedBowlPick[] = [];
+
     for (let i = 1; i <= totalGames; i++) {
-      // Select spread pick (alternate between favorite and underdog)
-      await this.selectSpreadPick(i, i % 2 === 1);
-      
-      // Select unique confidence points (1 to totalGames)
-      await this.selectConfidence(i, i);
-      
-      // Select outright winner (same as spread pick for simplicity)
-      await this.selectOutrightWinner(i, i % 2 === 1);
-      
+      const pickFavorite = i % 2 === 1;
+      const spreadButtonLabel = await this.selectSpreadPick(i, pickFavorite);
+      const confidence = await this.selectConfidence(i, i);
+      const outrightWinner = await this.selectOutrightWinner(i, pickFavorite);
+
+      let spreadPick: string;
+      if (spreadButtonLabel === outrightWinner) {
+        spreadPick = spreadButtonLabel;
+      } else if (spreadButtonLabel.startsWith(`${outrightWinner} `)) {
+        spreadPick = spreadButtonLabel.slice(0, outrightWinner.length);
+      } else {
+        throw new Error(
+          `Game ${i} spread button "${spreadButtonLabel}" does not identify selected team "${outrightWinner}"`
+        );
+      }
+
+      submittedPicks.push({
+        gameNumber: i,
+        spreadPick,
+        confidence,
+        outrightWinner
+      });
+
       // Small delay to let Blazor update
       await this.page.waitForTimeout(100);
     }
+
+    return submittedPicks;
   }
 
   /**
@@ -207,6 +241,8 @@ export class BowlPicksPage {
    */
   async clickDownload(): Promise<void> {
     await this.downloadButton.click();
+    await this.generatedDownloadButton.waitFor({ state: 'visible' });
+    await this.generatedDownloadButton.click();
   }
 
   /**

@@ -21,7 +21,7 @@ The Copilot coding agent's environment includes:
 
 ### Development Tools
 - **.NET 8 SDK** - For building the Blazor Web App and Azure Functions
-- **Node.js 20** - For running Playwright tests and npm tools
+- **Node.js 22** - For running Playwright tests and npm tools
 - **Azure Functions Core Tools v4** - For running the Functions API locally
 - **Azurite** - Azure Storage Emulator for local blob storage (no Azure subscription needed)
 
@@ -47,7 +47,7 @@ All services run locally in the GitHub Actions runner:
 ### Consistent with CI/CD
 The environment matches the smoke-tests workflow exactly:
 - Same .NET version (8.0.x)
-- Same Node.js version (20)
+- Same Node.js version (22)
 - Same Azure Functions Core Tools version (v4)
 - Same Azurite setup
 
@@ -142,7 +142,7 @@ GitHub Copilot Coding Agent
     │ Pre-installed Tools │
     ├─────────────────────┤
     │ • .NET 8            │
-    │ • Node.js 20        │
+    │ • Node.js 22        │
     │ • Azure Functions   │
     │ • Azurite           │
     │ • Playwright        │

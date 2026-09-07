@@ -90,7 +90,7 @@ public void MethodName_Scenario_ExpectedBehavior()
 
 # Install dependencies (first time only)
 cd tests
-npm install
+npm ci
 npx playwright install chromium
 
 # Run all tests

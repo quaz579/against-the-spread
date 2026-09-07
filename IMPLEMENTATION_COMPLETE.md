@@ -106,7 +106,7 @@ A fully configured development container that works with:
 
 Every developer gets the exact same environment:
 - ✅ Same .NET version (8.0)
-- ✅ Same Node.js version (20)
+- ✅ Same Node.js version (22)
 - ✅ Same Azure Functions Core Tools (v4)
 - ✅ Same Azurite version
 - ✅ Same Playwright version
@@ -117,7 +117,7 @@ Every developer gets the exact same environment:
 
 The container automatically installs:
 - .NET 8 SDK
-- Node.js 20
+- Node.js 22
 - Azure Functions Core Tools v4
 - Azurite
 - Playwright with Chromium
@@ -221,7 +221,7 @@ Command Palette (F1) → "Dev Containers: Rebuild Container"
 ### Tests Fail
 ```bash
 dotnet clean && dotnet build
-cd tests && rm -rf node_modules && npm install
+cd tests && rm -rf node_modules && npm ci
 npx playwright install chromium
 ```
 

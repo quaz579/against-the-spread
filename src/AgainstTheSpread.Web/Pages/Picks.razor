@@ -181,7 +181,7 @@
                                 📥 Download File
                             </button>
                             <small class="text-muted text-center">
-                                On iPhone, if the file opens in a preview, use Share → Save to Files.
+                                On iPhone, choose Save to Files from the share sheet.
                             </small>
                         </div>
                     }
@@ -204,6 +204,7 @@
     private string? errorMessage = null;
     private byte[]? generatedExcelBytes = null;
     private string? generatedFileName = null;
+    private long picksRevision;
 
     protected override async Task OnInitializedAsync()
     {
@@ -243,6 +244,7 @@
         if (string.IsNullOrWhiteSpace(userName) || selectedWeek == 0)
             return;
 
+        InvalidateGeneratedWorkbook();
         isLoading = true;
         errorMessage = null;
 
@@ -275,13 +277,20 @@
     {
         currentWeekLines = null;
         selectedPicks.Clear();
-        generatedExcelBytes = null;
-        generatedFileName = null;
+        InvalidateGeneratedWorkbook();
     }
 
     private void TogglePick(string team)
     {
         PickSelectionHelper.TogglePick(team, selectedPicks, currentWeekLines?.Games);
+        InvalidateGeneratedWorkbook();
+    }
+
+    private void InvalidateGeneratedWorkbook()
+    {
+        picksRevision++;
+        generatedExcelBytes = null;
+        generatedFileName = null;
     }
 
     private async Task GeneratePicks()
@@ -289,6 +298,7 @@
         if (selectedPicks.Count != 6)
             return;
 
+        var submittedRevision = picksRevision;
         isDownloading = true;
 
         try
@@ -298,25 +308,28 @@
                 Name = userName,
                 Week = selectedWeek,
                 Year = selectedYear,
-                Picks = selectedPicks,
+                Picks = selectedPicks.ToList(),
                 SubmittedAt = DateTime.UtcNow
             };
 
             var excelBytes = await ApiService.SubmitPicksAsync(userPicks);
 
-            if (excelBytes != null)
+            if (excelBytes != null && submittedRevision == picksRevision)
             {
                 generatedExcelBytes = excelBytes;
                 generatedFileName = $"{SanitizeFileName(userName)}_Week_{selectedWeek}_Picks.xlsx";
             }
-            else
+            else if (excelBytes == null && submittedRevision == picksRevision)
             {
                 errorMessage = "Failed to generate picks file. Please try again.";
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error downloading picks: {ex.Message}";
+            if (submittedRevision == picksRevision)
+            {
+                errorMessage = $"Error downloading picks: {ex.Message}";
+            }
         }
         finally
         {

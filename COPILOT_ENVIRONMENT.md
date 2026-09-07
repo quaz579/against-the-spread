@@ -6,7 +6,7 @@ This guide helps you quickly set up a complete development environment for the A
 
 **For GitHub Copilot coding agent users:** The repository includes a pre-configured environment setup at `.github/workflows/copilot-setup-steps.yml`. This workflow automatically prepares the agent's environment with:
 - .NET 8 SDK
-- Node.js 20
+- Node.js 22
 - Azure Functions Core Tools v4
 - Azurite (Azure Storage Emulator)
 - Playwright with Chromium browser
@@ -86,7 +86,7 @@ Both options provide:
 
 ### Pre-installed Tools
 - ✅ .NET 8 SDK
-- ✅ Node.js 20
+- ✅ Node.js 22
 - ✅ Azure Functions Core Tools v4
 - ✅ Azurite (Azure Storage Emulator)
 - ✅ Playwright with Chromium browser
@@ -174,7 +174,7 @@ dotnet test
 dotnet clean
 dotnet build
 cd tests
-npm install
+npm ci
 npx playwright install chromium
 ```
 
