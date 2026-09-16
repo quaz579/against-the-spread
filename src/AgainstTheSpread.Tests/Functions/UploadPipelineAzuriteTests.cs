@@ -91,6 +91,33 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
     }
 
     [Fact]
+    public async Task WeeklyClientUpload_InvalidDate_ReturnsCellErrorAndPreservesExistingBlobs()
+    {
+        const int week = 51;
+        const int year = 2099;
+        using var valid = new MemoryStream(CreateWeeklyWorkbook());
+        await api.UploadLinesAsync(week, year, valid, "valid.xlsx", "integration-token");
+        var originalJson = await DownloadBlob($"lines/week-{week}-{year}.json");
+        var originalWorkbook = await DownloadBlob($"lines/week-{week}-{year}.xlsx");
+
+        using var package = new ExcelPackage(new MemoryStream(CreateWeeklyWorkbook()));
+        var sheet = package.Workbook.Worksheets[0];
+        sheet.Cells[11, 1].Value = "Friday, September 19, 2026";
+        sheet.Cells[13, 2].Value = "Another Favorite";
+        sheet.Cells[13, 3].Value = -7.5;
+        sheet.Cells[13, 5].Value = "Another Underdog";
+        using var invalid = new MemoryStream(package.GetAsByteArray());
+
+        var response = await api.UploadLinesAsync(week, year, invalid, "invalid.xlsx", "integration-token");
+
+        (await DownloadBlob($"lines/week-{week}-{year}.json")).Should().Equal(originalJson);
+        (await DownloadBlob($"lines/week-{week}-{year}.xlsx")).Should().Equal(originalWorkbook);
+        response.Should().NotBeNull();
+        response!.Success.Should().BeFalse();
+        response.Message.Should().Contain("A11").And.Contain("Friday, September 19, 2026");
+    }
+
+    [Fact]
     public async Task BowlClientUpload_ReachesRealParserAndAzuriteReadback()
     {
         const int year = 2099;

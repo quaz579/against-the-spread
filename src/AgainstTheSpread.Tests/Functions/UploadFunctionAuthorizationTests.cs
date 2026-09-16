@@ -145,6 +145,27 @@ public class UploadFunctionAuthorizationTests
         storage.VerifyAll();
     }
 
+    [Fact]
+    public async Task UploadLines_Run_InvalidWorkbook_ReturnsBadRequestWithoutCallingStorage()
+    {
+        var excel = new Mock<IExcelService>();
+        const string message = "Invalid date header at C11: 'Friday, September 19, 2026'. Check the weekday.";
+        excel.Setup(e => e.ParseWeeklyLinesAsync(It.IsAny<Stream>(), 3, 2026, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new FormatException(message));
+        var storage = new Mock<IStorageService>(MockBehavior.Strict);
+        var function = new UploadLinesFunction(Mock.Of<ILogger<UploadLinesFunction>>(),
+            excel.Object, storage.Object, AuthorizedAuthorization().Object);
+        var request = CreateRequest(new NameValueCollection { ["week"] = "3", ["year"] = "2026" }, new byte[] { 1 });
+
+        var response = await function.Run(request, CancellationToken.None);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Body.Position = 0;
+        using var body = await JsonDocument.ParseAsync(response.Body);
+        body.RootElement.GetProperty("error").GetString().Should().Be(message);
+        storage.VerifyNoOtherCalls();
+    }
+
     private static Mock<IAdminAuthorizationService> DenyingAuthorization()
     {
         var authorization = new Mock<IAdminAuthorizationService>();
