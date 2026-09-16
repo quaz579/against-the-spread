@@ -177,7 +177,159 @@ public class ExcelServiceTests : IDisposable
         game!.Line.Should().Be((decimal)expectedLine);
     }
 
+    [Theory]
+    [InlineData("Friday, September 19, 2026", 3)]
+    [InlineData("Saturday, September 20, 2026", 3)]
+    [InlineData("Friday, September 19, 2026", 4)]
+    [InlineData("Saturday, September 20, 2026", 4)]
+    public async Task ParseWeeklyLinesAsync_WithMismatchedDateHeader_RejectsInsteadOfReusingThursday(string header, int dateColumn)
+    {
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("Week 3 Lines");
+        sheet.Cells[5, 4].Value = "Favorite";
+        sheet.Cells[5, 5].Value = "Line";
+        sheet.Cells[5, 6].Value = "vs/at";
+        sheet.Cells[5, 7].Value = "Under Dog";
+        sheet.Cells[7, dateColumn].Value = "Thursday, September 17, 2026";
+        sheet.Cells[9, 4].Value = "Pittsburgh";
+        sheet.Cells[9, 5].Value = -9.5;
+        sheet.Cells[9, 7].Value = "Syracuse";
+        sheet.Cells[11, dateColumn].Value = header;
+        sheet.Cells[13, 4].Value = "Miami (FL)";
+        sheet.Cells[13, 5].Value = -23.5;
+        sheet.Cells[13, 7].Value = "Wake Forest";
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var exception = await Assert.ThrowsAsync<FormatException>(
+            () => _excelService.ParseWeeklyLinesAsync(stream, 3, 2026));
+
+        exception.Message.Should().Contain(sheet.Cells[11, dateColumn].Address).And.Contain(header)
+            .And.Contain("weekday");
+    }
+
+    [Fact]
+    public async Task ParseWeeklyLinesAsync_WithMissingDate_RejectsInsteadOfUsingUploadTime()
+    {
+        using var package = new ExcelPackage(new MemoryStream(CreateWeek1LinesExcel()));
+        package.Workbook.Worksheets[0].Cells[7, 1].Value = null;
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var exception = await Assert.ThrowsAsync<FormatException>(
+            () => _excelService.ParseWeeklyLinesAsync(stream));
+
+        exception.Message.Should().Contain("row 9").And.Contain("date header");
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task ParseWeeklyLinesAsync_WithValidSectionDates_PreservesDistinctDays(int dateColumn)
+    {
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("Week 3 Lines");
+        sheet.Cells[5, 4].Value = "Favorite";
+        sheet.Cells[5, 5].Value = "Line";
+        sheet.Cells[5, 6].Value = "vs/at";
+        sheet.Cells[5, 7].Value = "Under Dog";
+        var headers = new[] { "Thursday, September 17, 2026", "Friday, September 18, 2026", "Saturday, September 19, 2026" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            int row = 7 + i * 4;
+            sheet.Cells[row, dateColumn].Value = headers[i];
+            sheet.Cells[row + 2, 4].Value = $"Favorite {i}";
+            sheet.Cells[row + 2, 5].Value = -3.5;
+            sheet.Cells[row + 2, 7].Value = $"Underdog {i}";
+        }
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream, 3, 2026);
+
+        result.Games.Select(g => g.GameDate).Should().Equal(
+            new DateTime(2026, 9, 17), new DateTime(2026, 9, 18), new DateTime(2026, 9, 19));
+        result.Games.Select(g => g.Favorite).Should().Equal("Favorite 0", "Favorite 1", "Favorite 2");
+        result.Games.Should().OnlyContain(g => g.Line == -3.5m);
+    }
+
+    [Theory]
+    [InlineData("09.31.2026", 1)]
+    [InlineData("09.31.2026", 2)]
+    [InlineData("09.31.2026", 3)]
+    [InlineData("09.31.2026", 4)]
+    [InlineData("TBD", 1)]
+    [InlineData("TBD", 2)]
+    [InlineData("TBD", 3)]
+    [InlineData("TBD", 4)]
+    public async Task ParseWeeklyLinesAsync_WithUnparseableSectionHeader_RejectsInsteadOfReusingThursday(string header, int dateColumn)
+    {
+        using var stream = new MemoryStream(CreateSectionHeaderExcel(header, dateColumn));
+
+        var exception = await Assert.ThrowsAsync<FormatException>(
+            () => _excelService.ParseWeeklyLinesAsync(stream, 3, 2026));
+
+        exception.Message.Should().Contain("Invalid date header")
+            .And.Contain(ExcelCellBase.GetAddress(11, dateColumn)).And.Contain(header);
+    }
+
+    [Theory]
+    [InlineData("09.18.2026", 1, 18)]
+    [InlineData("09.18.2026", 2, 18)]
+    [InlineData("09.18.2026", 3, 18)]
+    [InlineData("09.18.2026", 4, 18)]
+    [InlineData(null, 3, 17)]
+    [InlineData(null, 4, 17)]
+    [InlineData("", 3, 17)]
+    [InlineData("", 4, 17)]
+    [InlineData("   ", 3, 17)]
+    [InlineData("   ", 4, 17)]
+    public async Task ParseWeeklyLinesAsync_WithDottedOrBlankSectionHeader_PreservesDatesAndTeams(string? header, int dateColumn, int secondGameDay)
+    {
+        using var stream = new MemoryStream(CreateSectionHeaderExcel(header, dateColumn));
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream, 3, 2026);
+
+        result.Games.Select(g => g.GameDate).Should().Equal(
+            new DateTime(2026, 9, 17), new DateTime(2026, 9, secondGameDay));
+        result.Games.Select(g => g.Favorite).Should().Equal("Pittsburgh", "Miami (FL)");
+        result.Games.Select(g => g.Underdog).Should().Equal("Syracuse", "Wake Forest");
+        result.Games.Select(g => g.Line).Should().Equal(-9.5m, -23.5m);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(11)]
+    [InlineData(12)]
+    public async Task ParseWeeklyLinesAsync_WithValidReferenceWorkbook_AcceptsGames(int week)
+    {
+        var filePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+            "../../../../../reference-docs", $"Week {week} Lines.xlsx"));
+        using var stream = File.OpenRead(filePath);
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream, week, 2025);
+
+        result.Games.Should().NotBeEmpty();
+        result.Games.Should().OnlyContain(g => g.GameDate.Year == 2025);
+    }
+
     // Helper methods to create test Excel files
+
+    private byte[] CreateSectionHeaderExcel(string? header, int dateColumn)
+    {
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("Week 3 Lines");
+        sheet.Cells[5, 4].Value = "Favorite";
+        sheet.Cells[5, 5].Value = "Line";
+        sheet.Cells[5, 6].Value = "vs/at";
+        sheet.Cells[5, 7].Value = "Under Dog";
+        sheet.Cells[7, dateColumn].Value = "Thursday, September 17, 2026";
+        sheet.Cells[9, 4].Value = "Pittsburgh";
+        sheet.Cells[9, 5].Value = -9.5;
+        sheet.Cells[9, 7].Value = "Syracuse";
+        sheet.Cells[11, dateColumn].Value = header;
+        sheet.Cells[13, 4].Value = "Miami (FL)";
+        sheet.Cells[13, 5].Value = -23.5;
+        sheet.Cells[13, 7].Value = "Wake Forest";
+        return package.GetAsByteArray();
+    }
 
     private byte[] CreateWeek1LinesExcel()
     {

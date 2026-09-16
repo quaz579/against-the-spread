@@ -99,6 +99,40 @@ public class AdminAuthenticationTests : TestContext
         cut.Markup.Should().NotContain("expired or invalid");
     }
 
+    [Fact]
+    public async Task UploadFile_InvalidDate_ShowsCellSpecificErrorAndKeepsAdminSignedIn()
+    {
+        RegisterApi(new ValidationErrorHandler());
+        var cut = RenderComponent<AgainstTheSpread.Web.Pages.Admin>();
+        await cut.InvokeAsync(() => cut.Instance.HandleGoogleCredential("google-id-token"));
+        SetPrivateField(cut.Instance, "selectedFile", new TestBrowserFile());
+        cut.Render();
+
+        cut.Find("button.btn-primary").Click();
+
+        cut.Find(".alert-danger").TextContent.Should().Contain("C11")
+            .And.Contain("Friday, September 19, 2026");
+        cut.Markup.Should().Contain("weekInput");
+        cut.Markup.Should().NotContain("Successfully uploaded");
+    }
+
+    private sealed class ValidationErrorHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.AbsolutePath == "/api/current-admin")
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new { email = "verified@example.com" })
+                });
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = JsonContent.Create(new { success = false, message = "Invalid date header at C11: 'Friday, September 19, 2026'. Check the weekday." })
+            });
+        }
+    }
+
     private void RegisterApi(HttpStatusCode meStatus)
     {
         RegisterApi(new AdminApiHandler(meStatus));

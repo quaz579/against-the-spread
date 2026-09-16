@@ -99,7 +99,9 @@ public class ApiService
             using var response = await _httpClient.SendAsync(request);
             ThrowIfAdminAccessDenied(response);
 
-            if (response.IsSuccessStatusCode)
+            // Validation errors are safe, actionable messages from the weekly
+            // importer. Preserve them for the admin instead of hiding the cell.
+            if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.BadRequest)
             {
                 return await response.Content.ReadFromJsonAsync<UploadResponse>();
             }

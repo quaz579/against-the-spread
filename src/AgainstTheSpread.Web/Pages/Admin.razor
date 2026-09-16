@@ -439,7 +439,9 @@
             }
             else
             {
-                errorMessage = "Failed to upload file. Please check the format and try again.";
+                errorMessage = !string.IsNullOrWhiteSpace(response?.Message)
+                    ? response.Message
+                    : "Failed to upload file. Please check the format and try again.";
             }
         }
         catch (AdminAuthenticationException)

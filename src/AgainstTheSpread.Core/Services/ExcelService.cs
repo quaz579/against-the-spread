@@ -1,6 +1,7 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
 using OfficeOpenXml;
+using System.Globalization;
 
 namespace AgainstTheSpread.Core.Services;
 
@@ -110,63 +111,31 @@ public class ExcelService : IExcelService
             throw new FormatException($"Could not find required columns: {string.Join(", ", missing)}. Found header at row {headerRow}, Favorite at col {favoriteCol}, Line at col {lineCol}, Under Dog at col {underdogCol}");
         }
 
-        // Find the date column (usually before Favorite column)
-        int dateCol = 0;
-        for (int col = 1; col < favoriteCol; col++)
-        {
-            var cellValue = worksheet.Cells[headerRow + 1, col].Text?.Trim();
-            if (!string.IsNullOrEmpty(cellValue) && DateTime.TryParse(cellValue, out _))
-            {
-                dateCol = col;
-                break;
-            }
-        }
-
-        // If no date found before favorite, check the same column as favorite for dates
-        if (dateCol == 0)
-        {
-            var cellValue = worksheet.Cells[headerRow + 1, favoriteCol].Text?.Trim();
-            if (!string.IsNullOrEmpty(cellValue) && DateTime.TryParse(cellValue, out _))
-            {
-                dateCol = favoriteCol;
-            }
-        }
-
-        // Parse games starting after header row
+        // Scan each section row rather than inferring a date column from the
+        // single row after the table header (which is often blank).
         DateTime? currentGameDate = null;
-        for (int row = headerRow + 1; row <= worksheet.Dimension.End.Row; row++)
+        for (int row = headerRow + 1; row <= worksheet.Dimension!.End.Row; row++)
         {
             var favoriteValue = worksheet.Cells[row, favoriteCol].Text?.Trim();
-
-            // Check if this is a date header row
-            if (dateCol > 0)
-            {
-                var dateValue = worksheet.Cells[row, dateCol].Text?.Trim();
-                if (!string.IsNullOrEmpty(dateValue) && DateTime.TryParse(dateValue, out DateTime parsedDate))
-                {
-                    currentGameDate = parsedDate;
-                    continue;
-                }
-            }
-
-            // Try to find date in any non-empty cell in columns before favorite
-            if (string.IsNullOrEmpty(favoriteValue))
-            {
-                for (int col = 1; col < favoriteCol; col++)
-                {
-                    var cellValue = worksheet.Cells[row, col].Text?.Trim();
-                    if (!string.IsNullOrEmpty(cellValue) && DateTime.TryParse(cellValue, out DateTime parsedDate))
-                    {
-                        currentGameDate = parsedDate;
-                        break;
-                    }
-                }
-                continue;
-            }
-
             var lineText = worksheet.Cells[row, lineCol].Text?.Trim();
             var vsAt = vsAtCol > 0 ? worksheet.Cells[row, vsAtCol].Text?.Trim() : "vs";
             var underdog = worksheet.Cells[row, underdogCol].Text?.Trim();
+
+            // Dates may occupy the Favorite column, but never interpret an
+            // actual team's name as a date header.
+            bool sectionRow = string.IsNullOrEmpty(lineText) && string.IsNullOrEmpty(underdog);
+            int lastDateCol = sectionRow ? favoriteCol : favoriteCol - 1;
+            bool foundDate = false;
+            for (int col = 1; col <= lastDateCol; col++)
+            {
+                if (TryParseDateHeader(worksheet.Cells[row, col], out DateTime parsedDate))
+                {
+                    currentGameDate = parsedDate;
+                    foundDate = true;
+                }
+            }
+            if (foundDate || string.IsNullOrEmpty(favoriteValue))
+                continue;
 
             // Normalize vs/at values (handle typos like "a" instead of "at")
             if (!string.IsNullOrEmpty(vsAt))
@@ -194,7 +163,8 @@ public class ExcelService : IExcelService
                 Line = line,
                 VsAt = vsAt ?? "vs",
                 Underdog = underdog,
-                GameDate = currentGameDate ?? DateTime.UtcNow
+                GameDate = currentGameDate ?? throw new FormatException(
+                    $"Game at row {row} has no valid date header. Add a date header before the games and upload again.")
             };
 
             weeklyLines.Games.Add(game);
@@ -206,6 +176,21 @@ public class ExcelService : IExcelService
         }
 
         return await Task.FromResult(weeklyLines);
+    }
+
+    // Only blank header cells may be skipped. Any other unparseable header
+    // must fail rather than silently reusing the previous section's date.
+    private static bool TryParseDateHeader(ExcelRange cell, out DateTime date)
+    {
+        var text = cell.Text.Trim();
+        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+            return true;
+
+        if (text.Length == 0)
+            return false;
+
+        throw new FormatException(
+            $"Invalid date header at {cell.Address}: '{text}'. Check that the weekday matches the calendar date and correct the file before uploading.");
     }
 
     /// <summary>
