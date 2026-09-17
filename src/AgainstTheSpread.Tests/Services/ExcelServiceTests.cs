@@ -325,6 +325,48 @@ public class ExcelServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ParseWeeklyLinesAsync_WithPartialGameRowInFavoriteColumnDateLayout_RejectsAmbiguousCandidate()
+    {
+        // No real reference workbook puts a date in the Favorite column itself - all four
+        // Week N Lines.xlsx files use a dedicated date column left of Favorite. In this
+        // synthetic layout a partial row ("Georgia", no line/underdog) is byte-for-byte
+        // identical in shape to a genuinely invalid date header ("TBD"), so rejecting is the
+        // deliberate, safer choice over silently skipping and risking a stale date on a real
+        // game later in the file.
+        using var package = new ExcelPackage(new MemoryStream(CreateSectionHeaderExcel("Friday, September 18, 2026", 4)));
+        var sheet = package.Workbook.Worksheets[0];
+        sheet.Cells[10, 4].Value = "Georgia";
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var exception = await Assert.ThrowsAsync<FormatException>(
+            () => _excelService.ParseWeeklyLinesAsync(stream, 3, 2026));
+
+        exception.Message.Should().Contain(ExcelCellBase.GetAddress(10, 4)).And.Contain("Georgia");
+    }
+
+    [Fact]
+    public async Task ParseWeeklyLinesAsync_WithUnresolvedFavoriteColumnHeaderAndNoValidDateEver_NamesTheOffendingCell()
+    {
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("Week 3 Lines");
+        sheet.Cells[5, 4].Value = "Favorite";
+        sheet.Cells[5, 5].Value = "Line";
+        sheet.Cells[5, 6].Value = "vs/at";
+        sheet.Cells[5, 7].Value = "Under Dog";
+        sheet.Cells[7, 4].Value = "TBD";
+        sheet.Cells[9, 4].Value = "Pittsburgh";
+        sheet.Cells[9, 5].Value = -9.5;
+        sheet.Cells[9, 7].Value = "Syracuse";
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var exception = await Assert.ThrowsAsync<FormatException>(
+            () => _excelService.ParseWeeklyLinesAsync(stream, 3, 2026));
+
+        exception.Message.Should().Contain("row 9").And.Contain("date header")
+            .And.Contain(sheet.Cells[7, 4].Address).And.Contain("TBD");
+    }
+
+    [Fact]
     public async Task ParseWeeklyLinesAsync_WithMultipleParseableDatesInHeaderRow_UsesFirstMatch()
     {
         using var package = new ExcelPackage();

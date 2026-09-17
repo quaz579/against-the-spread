@@ -115,6 +115,11 @@ public class ExcelService : IExcelService
         // single row after the table header (which is often blank).
         DateTime? currentGameDate = null;
         int dateCol = 0;
+        // First swallowed Favorite-column candidate seen before dateCol locks, so a later
+        // "no valid date header" error can name the cell an admin actually typed into,
+        // instead of pointing at an unrelated game row.
+        string? unresolvedHeaderAddress = null;
+        string? unresolvedHeaderText = null;
         for (int row = headerRow + 1; row <= worksheet.Dimension!.End.Row; row++)
         {
             var favoriteValue = worksheet.Cells[row, favoriteCol].Text?.Trim();
@@ -135,13 +140,29 @@ public class ExcelService : IExcelService
                 if (isFavoriteColumn && dateCol != 0 && dateCol != favoriteCol)
                     continue;
 
+                // Once the Favorite column IS the confirmed date column, a non-date cell there
+                // can't be told apart from a partially typed team name - both are a lone
+                // Favorite-only cell with no line/underdog. Rejecting the upload is the safer
+                // failure mode: silently skipping risks reusing a stale date for a real game
+                // below, which is the exact bug this date-header validation exists to prevent.
                 bool throwOnInvalid = !isFavoriteColumn || dateCol == favoriteCol;
-                if (TryParseDateHeader(worksheet.Cells[row, col], throwOnInvalid, out DateTime parsedDate))
+                var cell = worksheet.Cells[row, col];
+                if (TryParseDateHeader(cell, throwOnInvalid, out DateTime parsedDate))
                 {
                     currentGameDate = parsedDate;
                     foundDate = true;
                     if (dateCol == 0) dateCol = col;
                     break;
+                }
+
+                if (!throwOnInvalid && unresolvedHeaderAddress is null)
+                {
+                    var candidateText = cell.Text?.Trim();
+                    if (!string.IsNullOrEmpty(candidateText))
+                    {
+                        unresolvedHeaderAddress = cell.Address;
+                        unresolvedHeaderText = candidateText;
+                    }
                 }
             }
             if (foundDate || string.IsNullOrEmpty(favoriteValue))
@@ -173,8 +194,9 @@ public class ExcelService : IExcelService
                 Line = line,
                 VsAt = vsAt ?? "vs",
                 Underdog = underdog,
-                GameDate = currentGameDate ?? throw new FormatException(
-                    $"Game at row {row} has no valid date header. Add a date header before the games and upload again.")
+                GameDate = currentGameDate ?? throw new FormatException(unresolvedHeaderAddress is not null
+                    ? $"Game at row {row} has no valid date header. The header at {unresolvedHeaderAddress} ('{unresolvedHeaderText}') did not parse as a date; fix it and upload again."
+                    : $"Game at row {row} has no valid date header. Add a date header before the games and upload again.")
             };
 
             weeklyLines.Games.Add(game);
