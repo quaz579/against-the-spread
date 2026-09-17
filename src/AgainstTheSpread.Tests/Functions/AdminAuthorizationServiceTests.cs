@@ -3,7 +3,8 @@ using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace AgainstTheSpread.Tests.Functions;
 
@@ -12,8 +13,8 @@ public class AdminAuthorizationServiceTests
     [Fact]
     public async Task AuthorizeAsync_MissingGoogleToken_ReturnsUnauthorizedAndIgnoresSwaHeaders()
     {
-        var validator = new Mock<IGoogleIdTokenValidator>(MockBehavior.Strict);
-        var service = CreateService(validator.Object, "admin@example.com");
+        var validator = Substitute.For<IGoogleIdTokenValidator>();
+        var service = CreateService(validator, "admin@example.com");
         var request = CreateRequest(
             null,
             ("Authorization", "Bearer swa-platform-token"),
@@ -23,14 +24,14 @@ public class AdminAuthorizationServiceTests
 
         result.Status.Should().Be(AdminAuthorizationStatus.Unauthorized);
         result.Email.Should().BeNull();
-        validator.VerifyNoOtherCalls();
+        validator.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
     public async Task AuthorizeAsync_UsesSwaPreservedGoogleTokenHeaderInsteadOfPlatformAuthorization()
     {
         var validator = ValidatorReturning(new GoogleIdentity("admin@example.com", true));
-        var service = CreateService(validator.Object, "admin@example.com");
+        var service = CreateService(validator, "admin@example.com");
         var request = CreateRequest(
             "valid-token",
             ("Authorization", "Bearer swa-platform-token"));
@@ -39,12 +40,8 @@ public class AdminAuthorizationServiceTests
 
         result.Status.Should().Be(AdminAuthorizationStatus.Authorized);
         result.Email.Should().Be("admin@example.com");
-        validator.Verify(
-            v => v.ValidateAsync("valid-token", It.IsAny<CancellationToken>()),
-            Times.Once);
-        validator.Verify(
-            v => v.ValidateAsync("swa-platform-token", It.IsAny<CancellationToken>()),
-            Times.Never);
+        await validator.Received(1).ValidateAsync("valid-token", Arg.Any<CancellationToken>());
+        await validator.DidNotReceive().ValidateAsync("swa-platform-token", Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -53,22 +50,22 @@ public class AdminAuthorizationServiceTests
     [InlineData("token with spaces")]
     public async Task AuthorizeAsync_MalformedGoogleTokenHeader_ReturnsUnauthorized(string header)
     {
-        var validator = new Mock<IGoogleIdTokenValidator>(MockBehavior.Strict);
-        var service = CreateService(validator.Object, "admin@example.com");
+        var validator = Substitute.For<IGoogleIdTokenValidator>();
+        var service = CreateService(validator, "admin@example.com");
 
         var result = await service.AuthorizeAsync(CreateRequest(header), CancellationToken.None);
 
         result.Status.Should().Be(AdminAuthorizationStatus.Unauthorized);
-        validator.VerifyNoOtherCalls();
+        validator.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
     public async Task AuthorizeAsync_ValidatorRejectsToken_ReturnsUnauthorized()
     {
-        var validator = new Mock<IGoogleIdTokenValidator>();
-        validator.Setup(v => v.ValidateAsync("rejected-token", It.IsAny<CancellationToken>()))
+        var validator = Substitute.For<IGoogleIdTokenValidator>();
+        validator.ValidateAsync("rejected-token", Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("sensitive validation detail"));
-        var service = CreateService(validator.Object, "admin@example.com");
+        var service = CreateService(validator, "admin@example.com");
 
         var result = await service.AuthorizeAsync(CreateRequest("rejected-token"), CancellationToken.None);
 
@@ -80,7 +77,7 @@ public class AdminAuthorizationServiceTests
     public async Task AuthorizeAsync_UnverifiedEmail_ReturnsUnauthorized()
     {
         var validator = ValidatorReturning(new GoogleIdentity("admin@example.com", false));
-        var service = CreateService(validator.Object, "admin@example.com");
+        var service = CreateService(validator, "admin@example.com");
 
         var result = await service.AuthorizeAsync(CreateRequest("valid-token"), CancellationToken.None);
 
@@ -95,7 +92,7 @@ public class AdminAuthorizationServiceTests
     public async Task AuthorizeAsync_EmptyEmail_ReturnsUnauthorized(string? email)
     {
         var validator = ValidatorReturning(new GoogleIdentity(email, true));
-        var service = CreateService(validator.Object, "admin@example.com");
+        var service = CreateService(validator, "admin@example.com");
 
         var result = await service.AuthorizeAsync(CreateRequest("valid-token"), CancellationToken.None);
 
@@ -107,7 +104,7 @@ public class AdminAuthorizationServiceTests
     public async Task AuthorizeAsync_EmailNotInAllowlist_ReturnsForbidden()
     {
         var validator = ValidatorReturning(new GoogleIdentity("other@example.com", true));
-        var service = CreateService(validator.Object, "admin@example.com");
+        var service = CreateService(validator, "admin@example.com");
 
         var result = await service.AuthorizeAsync(CreateRequest("valid-token"), CancellationToken.None);
 
@@ -119,13 +116,13 @@ public class AdminAuthorizationServiceTests
     public async Task AuthorizeAsync_AllowlistedEmailCaseInsensitively_ReturnsVerifiedEmail()
     {
         var validator = ValidatorReturning(new GoogleIdentity("Admin@Example.COM", true));
-        var service = CreateService(validator.Object, " first@example.com, admin@example.com ");
+        var service = CreateService(validator, " first@example.com, admin@example.com ");
 
         var result = await service.AuthorizeAsync(CreateRequest("valid-token"), CancellationToken.None);
 
         result.Status.Should().Be(AdminAuthorizationStatus.Authorized);
         result.Email.Should().Be("Admin@Example.COM");
-        validator.Verify(v => v.ValidateAsync("valid-token", It.IsAny<CancellationToken>()), Times.Once);
+        await validator.Received(1).ValidateAsync("valid-token", Arg.Any<CancellationToken>());
     }
 
     private static AdminAuthorizationService CreateService(
@@ -142,11 +139,11 @@ public class AdminAuthorizationServiceTests
         return new AdminAuthorizationService(validator, configuration);
     }
 
-    private static Mock<IGoogleIdTokenValidator> ValidatorReturning(GoogleIdentity identity)
+    private static IGoogleIdTokenValidator ValidatorReturning(GoogleIdentity identity)
     {
-        var validator = new Mock<IGoogleIdTokenValidator>();
-        validator.Setup(v => v.ValidateAsync("valid-token", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(identity);
+        var validator = Substitute.For<IGoogleIdTokenValidator>();
+        validator.ValidateAsync("valid-token", Arg.Any<CancellationToken>())
+            .Returns(identity);
         return validator;
     }
 
@@ -154,8 +151,8 @@ public class AdminAuthorizationServiceTests
         string? googleIdToken,
         params (string Name, string Value)[] additionalHeaders)
     {
-        var context = new Mock<FunctionContext>();
-        var request = new Mock<HttpRequestData>(context.Object);
+        var context = Substitute.For<FunctionContext>();
+        var request = Substitute.For<HttpRequestData>(context);
         var headers = new HttpHeadersCollection();
 
         if (googleIdToken is not null)
@@ -168,7 +165,7 @@ public class AdminAuthorizationServiceTests
             headers.Add(name, value);
         }
 
-        request.SetupGet(r => r.Headers).Returns(headers);
-        return request.Object;
+        request.Headers.Returns(headers);
+        return request;
     }
 }

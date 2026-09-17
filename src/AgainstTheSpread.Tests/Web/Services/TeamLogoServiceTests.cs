@@ -1,7 +1,6 @@
 using AgainstTheSpread.Web.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
-using Moq.Protected;
+using NSubstitute;
 using System.Net;
 using System.Text.Json;
 
@@ -9,30 +8,31 @@ namespace AgainstTheSpread.Tests.Web.Services;
 
 public class TeamLogoServiceTests
 {
-    private readonly Mock<ILogger<TeamLogoService>> _loggerMock;
+    private readonly ILogger<TeamLogoService> _loggerMock;
 
     public TeamLogoServiceTests()
     {
-        _loggerMock = new Mock<ILogger<TeamLogoService>>();
+        _loggerMock = Substitute.For<ILogger<TeamLogoService>>();
+    }
+
+    // HttpMessageHandler.SendAsync is protected internal, so NSubstitute cannot configure it
+    // through its public API; a hand-written subclass is the only route.
+    private sealed class StubHttpMessageHandler(Func<HttpResponseMessage> responseFactory) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(responseFactory());
     }
 
     private HttpClient CreateMockHttpClient(Dictionary<string, string> mapping)
     {
         var json = JsonSerializer.Serialize(mapping);
-        var handlerMock = new Mock<HttpMessageHandler>();
+        var handler = new StubHttpMessageHandler(() => new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(json)
+        });
 
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() => new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(json)
-            });
-
-        return new HttpClient(handlerMock.Object)
+        return new HttpClient(handler)
         {
             BaseAddress = new Uri("http://localhost/")
         };
@@ -40,19 +40,12 @@ public class TeamLogoServiceTests
 
     private HttpClient CreateFailingHttpClient()
     {
-        var handlerMock = new Mock<HttpMessageHandler>();
+        var handler = new StubHttpMessageHandler(() => new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.NotFound
+        });
 
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() => new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.NotFound
-            });
-
-        return new HttpClient(handlerMock.Object)
+        return new HttpClient(handler)
         {
             BaseAddress = new Uri("http://localhost/")
         };
@@ -69,7 +62,7 @@ public class TeamLogoServiceTests
             { "Notre Dame", "87" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);
@@ -86,7 +79,7 @@ public class TeamLogoServiceTests
         // Arrange
         var mapping = new Dictionary<string, string>();
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);
@@ -100,7 +93,7 @@ public class TeamLogoServiceTests
     {
         // Arrange
         var httpClient = CreateFailingHttpClient();
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);
@@ -119,7 +112,7 @@ public class TeamLogoServiceTests
             { "Michigan", "130" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -138,7 +131,7 @@ public class TeamLogoServiceTests
             { "Alabama", "333" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act & Assert
@@ -156,7 +149,7 @@ public class TeamLogoServiceTests
             { "Alabama", "333" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -171,7 +164,7 @@ public class TeamLogoServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, string>());
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         var logoUrl = service.GetLogoUrl(null);
@@ -185,7 +178,7 @@ public class TeamLogoServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, string>());
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         var logoUrl = service.GetLogoUrl("");
@@ -199,7 +192,7 @@ public class TeamLogoServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, string>());
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         var logoUrl = service.GetLogoUrl("   ");
@@ -218,7 +211,7 @@ public class TeamLogoServiceTests
             { "Michigan Wolverines", "130" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -237,7 +230,7 @@ public class TeamLogoServiceTests
             { "Alabama", "333" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -257,7 +250,7 @@ public class TeamLogoServiceTests
             { "Alabama Crimson Tide", "999" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -276,7 +269,7 @@ public class TeamLogoServiceTests
             { "Alabama", "333" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -295,7 +288,7 @@ public class TeamLogoServiceTests
             { "Alabama", "333" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -310,7 +303,7 @@ public class TeamLogoServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, string>());
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
 
         // Act
         var hasLogo = service.HasLogo(null);
@@ -332,7 +325,7 @@ public class TeamLogoServiceTests
             { "Texas", "251" }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamLogoService(_loggerMock.Object, httpClient);
+        var service = new TeamLogoService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act & Assert

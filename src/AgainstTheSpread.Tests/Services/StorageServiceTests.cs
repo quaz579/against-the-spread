@@ -3,7 +3,7 @@ using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Core.Services;
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 
 namespace AgainstTheSpread.Tests.Services;
 
@@ -18,11 +18,11 @@ public class StorageServiceTests
     {
         // Arrange
         var connectionString = "UseDevelopmentStorage=true";
-        var mockExcelService = new Mock<IExcelService>();
-        var mockLogger = new Mock<ILogger<StorageService>>();
+        var mockExcelService = Substitute.For<IExcelService>();
+        var mockLogger = Substitute.For<ILogger<StorageService>>();
 
         // Act
-        var service = new StorageService(connectionString, mockExcelService.Object, mockLogger.Object);
+        var service = new StorageService(connectionString, mockExcelService, mockLogger);
 
         // Assert
         service.Should().NotBeNull();
@@ -35,7 +35,7 @@ public class StorageServiceTests
         // For now, we verify the service is constructed correctly
         // In Phase 8, we'll add full integration tests with Azurite
 
-        var mockExcelService = new Mock<IExcelService>();
+        var mockExcelService = Substitute.For<IExcelService>();
 
         // We can't fully test without a real connection, but we verify construction
         Assert.True(true); // Placeholder - will enhance in Phase 8
@@ -47,7 +47,7 @@ public class StorageServiceTests
         // This test would need Azurite to run properly
         // For now, we verify the method signature
 
-        var mockExcelService = new Mock<IExcelService>();
+        var mockExcelService = Substitute.For<IExcelService>();
 
         // We can't fully test without a real connection, but we verify construction
         Assert.True(true); // Placeholder - will enhance in Phase 8

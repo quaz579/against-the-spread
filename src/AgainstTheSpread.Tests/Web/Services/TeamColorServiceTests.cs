@@ -1,8 +1,7 @@
 using AgainstTheSpread.Web.Services;
 using AgainstTheSpread.Web.Models;
 using Microsoft.Extensions.Logging;
-using Moq;
-using Moq.Protected;
+using NSubstitute;
 using System.Net;
 using System.Text.Json;
 
@@ -10,30 +9,31 @@ namespace AgainstTheSpread.Tests.Web.Services;
 
 public class TeamColorServiceTests
 {
-    private readonly Mock<ILogger<TeamColorService>> _loggerMock;
+    private readonly ILogger<TeamColorService> _loggerMock;
 
     public TeamColorServiceTests()
     {
-        _loggerMock = new Mock<ILogger<TeamColorService>>();
+        _loggerMock = Substitute.For<ILogger<TeamColorService>>();
+    }
+
+    // HttpMessageHandler.SendAsync is protected internal, so NSubstitute cannot configure it
+    // through its public API; a hand-written subclass is the only route.
+    private sealed class StubHttpMessageHandler(Func<HttpResponseMessage> responseFactory) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(responseFactory());
     }
 
     private HttpClient CreateMockHttpClient(Dictionary<string, TeamColors> mapping)
     {
         var json = JsonSerializer.Serialize(mapping);
-        var handlerMock = new Mock<HttpMessageHandler>();
+        var handler = new StubHttpMessageHandler(() => new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(json)
+        });
 
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() => new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(json)
-            });
-
-        return new HttpClient(handlerMock.Object)
+        return new HttpClient(handler)
         {
             BaseAddress = new Uri("http://localhost/")
         };
@@ -41,19 +41,12 @@ public class TeamColorServiceTests
 
     private HttpClient CreateFailingHttpClient()
     {
-        var handlerMock = new Mock<HttpMessageHandler>();
+        var handler = new StubHttpMessageHandler(() => new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.NotFound
+        });
 
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() => new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.NotFound
-            });
-
-        return new HttpClient(handlerMock.Object)
+        return new HttpClient(handler)
         {
             BaseAddress = new Uri("http://localhost/")
         };
@@ -70,7 +63,7 @@ public class TeamColorServiceTests
             { "Notre Dame", new TeamColors { Primary = "#0C2340", Secondary = "#C99700" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);
@@ -87,7 +80,7 @@ public class TeamColorServiceTests
         // Arrange
         var mapping = new Dictionary<string, TeamColors>();
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);
@@ -101,7 +94,7 @@ public class TeamColorServiceTests
     {
         // Arrange
         var httpClient = CreateFailingHttpClient();
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);
@@ -120,7 +113,7 @@ public class TeamColorServiceTests
             { "Michigan", new TeamColors { Primary = "#00274C", Secondary = "#FFCB05" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -141,7 +134,7 @@ public class TeamColorServiceTests
             { "Alabama", new TeamColors { Primary = "#9E1B32", Secondary = "#828A8F" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act & Assert
@@ -166,7 +159,7 @@ public class TeamColorServiceTests
             { "Alabama", new TeamColors { Primary = "#9E1B32", Secondary = "#828A8F" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -181,7 +174,7 @@ public class TeamColorServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, TeamColors>());
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         var colors = service.GetTeamColors(null);
@@ -195,7 +188,7 @@ public class TeamColorServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, TeamColors>());
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         var colors = service.GetTeamColors("");
@@ -209,7 +202,7 @@ public class TeamColorServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, TeamColors>());
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         var colors = service.GetTeamColors("   ");
@@ -228,7 +221,7 @@ public class TeamColorServiceTests
             { "Michigan Wolverines", new TeamColors { Primary = "#00274C", Secondary = "#FFCB05" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -248,7 +241,7 @@ public class TeamColorServiceTests
             { "Alabama", new TeamColors { Primary = "#9E1B32", Secondary = "#828A8F" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -269,7 +262,7 @@ public class TeamColorServiceTests
             { "Alabama Crimson Tide", new TeamColors { Primary = "#FF0000", Secondary = "#000000" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -289,7 +282,7 @@ public class TeamColorServiceTests
             { "Alabama", new TeamColors { Primary = "#9E1B32", Secondary = "#828A8F" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -308,7 +301,7 @@ public class TeamColorServiceTests
             { "Alabama", new TeamColors { Primary = "#9E1B32", Secondary = "#828A8F" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act
@@ -323,7 +316,7 @@ public class TeamColorServiceTests
     {
         // Arrange
         var httpClient = CreateMockHttpClient(new Dictionary<string, TeamColors>());
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         var hasColors = service.HasColors(null);
@@ -345,7 +338,7 @@ public class TeamColorServiceTests
             { "Texas", new TeamColors { Primary = "#BF5700", Secondary = "#FFFFFF" } }
         };
         var httpClient = CreateMockHttpClient(mapping);
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+        var service = new TeamColorService(_loggerMock, httpClient);
         await service.InitializeAsync(httpClient);
 
         // Act & Assert
@@ -376,24 +369,18 @@ public class TeamColorServiceTests
             ""Michigan"": { ""primary"": ""#00274C"", ""secondary"": ""#FFCB05"" }
         }";
         
-        var handlerMock = new Mock<HttpMessageHandler>();
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() => new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(json)
-            });
+        var handler = new StubHttpMessageHandler(() => new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(json)
+        });
 
-        var httpClient = new HttpClient(handlerMock.Object)
+        var httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri("http://localhost/")
         };
-        
-        var service = new TeamColorService(_loggerMock.Object, httpClient);
+
+        var service = new TeamColorService(_loggerMock, httpClient);
 
         // Act
         await service.InitializeAsync(httpClient);

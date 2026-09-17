@@ -5,7 +5,7 @@ using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -18,26 +18,26 @@ public class FunctionsTests
     public async Task WeeksFunction_GetWeeks_ReturnsWeeksList()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<WeeksFunction>>();
-        var mockStorage = new Mock<IStorageService>();
-        mockStorage.Setup(s => s.GetAvailableWeeksAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<int> { 1, 2, 3 });
+        var mockLogger = Substitute.For<ILogger<WeeksFunction>>();
+        var mockStorage = Substitute.For<IStorageService>();
+        mockStorage.GetAvailableWeeksAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new List<int> { 1, 2, 3 });
 
-        var function = new WeeksFunction(mockLogger.Object, mockStorage.Object);
+        var function = new WeeksFunction(mockLogger, mockStorage);
 
         // Act & Assert - basic construction test
         function.Should().NotBeNull();
-        mockStorage.Verify(s => s.GetAvailableWeeksAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        _ = mockStorage.DidNotReceive().GetAvailableWeeksAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task LinesFunction_GetLines_ValidatesWeekRange()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<LinesFunction>>();
-        var mockStorage = new Mock<IStorageService>();
+        var mockLogger = Substitute.For<ILogger<LinesFunction>>();
+        var mockStorage = Substitute.For<IStorageService>();
 
-        var function = new LinesFunction(mockLogger.Object, mockStorage.Object);
+        var function = new LinesFunction(mockLogger, mockStorage);
 
         // Act & Assert - basic construction test
         function.Should().NotBeNull();
@@ -47,12 +47,12 @@ public class FunctionsTests
     public async Task PicksFunction_SubmitPicks_ValidatesPicks()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<PicksFunction>>();
-        var mockExcel = new Mock<IExcelService>();
-        mockExcel.Setup(e => e.GeneratePicksExcelAsync(It.IsAny<UserPicks>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new byte[] { 1, 2, 3 });
+        var mockLogger = Substitute.For<ILogger<PicksFunction>>();
+        var mockExcel = Substitute.For<IExcelService>();
+        mockExcel.GeneratePicksExcelAsync(Arg.Any<UserPicks>(), Arg.Any<CancellationToken>())
+            .Returns(new byte[] { 1, 2, 3 });
 
-        var function = new PicksFunction(mockLogger.Object, mockExcel.Object);
+        var function = new PicksFunction(mockLogger, mockExcel);
 
         // Act & Assert - basic construction test
         function.Should().NotBeNull();

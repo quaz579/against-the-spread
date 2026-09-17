@@ -10,7 +10,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using OfficeOpenXml;
 using System.Collections.Specialized;
 using System.Diagnostics;
@@ -265,7 +265,7 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
             HttpRequestMessage source,
             CancellationToken cancellationToken)
         {
-            var context = new Mock<FunctionContext>();
+            var context = Substitute.For<FunctionContext>();
             var workerOptions = Options.Create(new WorkerOptions
             {
                 Serializer = new JsonObjectSerializer(new JsonSerializerOptions(JsonSerializerDefaults.Web))
@@ -273,12 +273,11 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
             var services = new ServiceCollection()
                 .AddSingleton<IOptions<WorkerOptions>>(workerOptions)
                 .BuildServiceProvider();
-            context.SetupGet(c => c.InstanceServices).Returns(services);
+            context.InstanceServices.Returns(services);
 
-            var functionResponse = new Mock<HttpResponseData>(context.Object);
-            functionResponse.SetupProperty(r => r.StatusCode);
-            functionResponse.SetupGet(r => r.Headers).Returns(new HttpHeadersCollection());
-            functionResponse.SetupProperty(r => r.Body, new MemoryStream());
+            var functionResponse = Substitute.For<HttpResponseData>(context);
+            functionResponse.Headers.Returns(new HttpHeadersCollection());
+            functionResponse.Body = new MemoryStream();
 
             var headers = new HttpHeadersCollection();
             foreach (var header in source.Headers)
@@ -297,12 +296,12 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
                 ? Array.Empty<byte>()
                 : await source.Content.ReadAsByteArrayAsync(cancellationToken);
 
-            var functionRequest = new Mock<HttpRequestData>(context.Object);
-            functionRequest.SetupGet(r => r.Headers).Returns(headers);
-            functionRequest.SetupGet(r => r.Query).Returns(query);
-            functionRequest.SetupGet(r => r.Body).Returns(new MemoryStream(body));
-            functionRequest.Setup(r => r.CreateResponse()).Returns(functionResponse.Object);
-            return functionRequest.Object;
+            var functionRequest = Substitute.For<HttpRequestData>(context);
+            functionRequest.Headers.Returns(headers);
+            functionRequest.Query.Returns(query);
+            functionRequest.Body.Returns(new MemoryStream(body));
+            functionRequest.CreateResponse().Returns(functionResponse);
+            return functionRequest;
         }
     }
 }

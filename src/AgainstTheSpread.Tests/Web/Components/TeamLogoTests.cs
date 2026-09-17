@@ -2,18 +2,18 @@ using AgainstTheSpread.Web.Components;
 using AgainstTheSpread.Web.Services;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using NSubstitute;
 
 namespace AgainstTheSpread.Tests.Web.Components;
 
 public class TeamLogoTests : TestContext
 {
-    private readonly Mock<ITeamLogoService> _logoServiceMock;
+    private readonly ITeamLogoService _logoServiceMock;
 
     public TeamLogoTests()
     {
-        _logoServiceMock = new Mock<ITeamLogoService>();
-        Services.AddSingleton(_logoServiceMock.Object);
+        _logoServiceMock = Substitute.For<ITeamLogoService>();
+        Services.AddSingleton(_logoServiceMock);
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public class TeamLogoTests : TestContext
         // Arrange
         var teamName = "Alabama";
         var logoUrl = "/images/logos/ncaa/333.png";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -40,7 +40,7 @@ public class TeamLogoTests : TestContext
     {
         // Arrange
         var teamName = "Unknown Team";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns((string?)null);
+        _logoServiceMock.GetLogoUrl(teamName).Returns((string?)null);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -54,7 +54,7 @@ public class TeamLogoTests : TestContext
     public void TeamLogo_DoesNotRenderImage_WhenTeamNameIsNull()
     {
         // Arrange
-        _logoServiceMock.Setup(s => s.GetLogoUrl(null)).Returns((string?)null);
+        _logoServiceMock.GetLogoUrl(null).Returns((string?)null);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -68,7 +68,7 @@ public class TeamLogoTests : TestContext
     public void TeamLogo_DoesNotRenderImage_WhenTeamNameIsEmpty()
     {
         // Arrange
-        _logoServiceMock.Setup(s => s.GetLogoUrl("")).Returns((string?)null);
+        _logoServiceMock.GetLogoUrl("").Returns((string?)null);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -84,7 +84,7 @@ public class TeamLogoTests : TestContext
         // Arrange
         var teamName = "Michigan";
         var logoUrl = "/images/logos/ncaa/130.png";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -102,7 +102,7 @@ public class TeamLogoTests : TestContext
         var teamName = "Michigan";
         var logoUrl = "/images/logos/ncaa/130.png";
         var customClass = "custom-logo-class";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -120,7 +120,7 @@ public class TeamLogoTests : TestContext
         // Arrange
         var teamName = "Ohio State";
         var logoUrl = "/images/logos/ncaa/194.png";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -142,7 +142,7 @@ public class TeamLogoTests : TestContext
         var teamName = "Ohio State";
         var logoUrl = "/images/logos/ncaa/194.png";
         var customStyle = "width: 48px; height: 48px;";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -160,7 +160,7 @@ public class TeamLogoTests : TestContext
         // Arrange
         var teamName = "Georgia";
         var logoUrl = "/images/logos/ncaa/61.png";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
@@ -181,8 +181,8 @@ public class TeamLogoTests : TestContext
         var logo1 = "/images/logos/ncaa/333.png";
         var logo2 = "/images/logos/ncaa/130.png";
 
-        _logoServiceMock.Setup(s => s.GetLogoUrl(team1)).Returns(logo1);
-        _logoServiceMock.Setup(s => s.GetLogoUrl(team2)).Returns(logo2);
+        _logoServiceMock.GetLogoUrl(team1).Returns(logo1);
+        _logoServiceMock.GetLogoUrl(team2).Returns(logo2);
 
         // Act
         var cut1 = RenderComponent<TeamLogo>(parameters => parameters
@@ -205,14 +205,14 @@ public class TeamLogoTests : TestContext
         // Arrange
         var teamName = "Texas";
         var logoUrl = "/images/logos/ncaa/251.png";
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(logoUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(logoUrl);
 
         // Act
         RenderComponent<TeamLogo>(parameters => parameters
             .Add(p => p.TeamName, teamName));
 
         // Assert - Component may call service multiple times during render
-        _logoServiceMock.Verify(s => s.GetLogoUrl(teamName), Times.AtLeastOnce);
+        _logoServiceMock.Received().GetLogoUrl(teamName);
     }
 
     [Theory]
@@ -224,7 +224,7 @@ public class TeamLogoTests : TestContext
     public void TeamLogo_RendersCorrectly_ForVariousTeams(string teamName, string expectedUrl)
     {
         // Arrange
-        _logoServiceMock.Setup(s => s.GetLogoUrl(teamName)).Returns(expectedUrl);
+        _logoServiceMock.GetLogoUrl(teamName).Returns(expectedUrl);
 
         // Act
         var cut = RenderComponent<TeamLogo>(parameters => parameters
