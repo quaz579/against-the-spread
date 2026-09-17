@@ -1,7 +1,7 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Core.Services;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 

@@ -1,7 +1,7 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Functions;
 using AgainstTheSpread.Functions.Authentication;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 

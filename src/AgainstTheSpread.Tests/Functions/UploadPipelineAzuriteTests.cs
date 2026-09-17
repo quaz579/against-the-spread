@@ -4,7 +4,7 @@ using AgainstTheSpread.Functions.Authentication;
 using AgainstTheSpread.Web.Services;
 using Azure.Core.Serialization;
 using Azure.Storage.Blobs;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;

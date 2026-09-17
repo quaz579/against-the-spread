@@ -2,7 +2,7 @@ using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Functions;
 using AgainstTheSpread.Functions.Authentication;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;

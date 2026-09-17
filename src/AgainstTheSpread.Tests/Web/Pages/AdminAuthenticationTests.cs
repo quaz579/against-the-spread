@@ -1,6 +1,6 @@
 using AgainstTheSpread.Web.Services;
 using Bunit;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components.Forms;
