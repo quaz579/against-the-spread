@@ -7,9 +7,8 @@ Thank you for your interest in contributing! This project uses AI-assisted devel
 This project is designed to be implemented primarily by AI agents with human oversight. Before contributing, please:
 
 1. **Read [`.agents.md`](.agents.md)** - Complete guide for AI agents
-2. **Review [`implementation-plan.md`](implementation-plan.md)** - Detailed implementation steps
-3. **Follow the testing strategy** - Tests must be written first (TDD)
-4. **Check frequently** - Compile and test after each change
+2. **Follow the testing strategy** - Tests must be written first (TDD)
+3. **Check frequently** - Compile and test after each change
 
 ## 📋 Development Workflow
 
@@ -17,7 +16,6 @@ This project is designed to be implemented primarily by AI agents with human ove
 
 1. **Review Context**
    - Read `.agents.md` for project structure and guidelines
-   - Review relevant sections of `implementation-plan.md`
    - Understand the current phase of development
 
 2. **Implement Feature**
@@ -225,28 +223,18 @@ Reviewers should verify:
 - ✅ Compile and test frequently
 - ✅ Keep commits small and focused
 - ✅ Update documentation
-- ✅ Follow the implementation plan
 - ✅ Ask questions when unclear
 - ✅ Reference issues in commits
 - ✅ Be responsive to code review
-
-## 🎯 Current Development Phase
-
-Check [`implementation-plan.md`](implementation-plan.md) to see:
-- Current phase of development
-- What's been completed
-- What's next to implement
-- Success criteria for each phase
 
 ## 📚 Required Reading
 
 Before contributing:
 1. [`.agents.md`](.agents.md) - Agent development guide
-2. [`implementation-plan.md`](implementation-plan.md) - Implementation roadmap
-3. [`README.md`](README.md) - Project overview
-4. [`TESTING.md`](TESTING.md) - Unit testing guide
-5. [`tests/README.md`](tests/README.md) - **E2E testing guide (Playwright)**
-6. Game rules in [`reference-docs/rules.md`](reference-docs/rules.md)
+2. [`README.md`](README.md) - Project overview
+3. [`TESTING.md`](TESTING.md) - Unit testing guide
+4. [`tests/README.md`](tests/README.md) - **E2E testing guide (Playwright)**
+5. Game rules in [`reference-docs/rules.md`](reference-docs/rules.md)
 
 ## 🐛 Reporting Issues
 

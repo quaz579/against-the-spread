@@ -258,13 +258,10 @@ Access dashboards in Azure Portal.
 - [ ] CI/CD pipeline
 
 ### Future Enhancements
-- Web-based admin upload interface
-- User authentication (Azure AD B2C)
 - Pick history and tracking
 - Automated scoring with game results
 - Leaderboards
 - Push notifications
-- Bowl games with confidence points
 - Playoff bracket management
 - Native mobile apps (.NET MAUI)
 
