@@ -108,7 +108,7 @@ public class UploadLinesFunction
             _logger.LogWarning(ex, "Rejected invalid weekly lines workbook");
             var response = req.CreateResponse(HttpStatusCode.BadRequest);
             await response.WriteAsJsonAsync(new { success = false, error = ex.Message, message = ex.Message },
-                HttpStatusCode.BadRequest, cancellationToken);
+                cancellationToken);
             return response;
         }
         catch (Exception ex)
