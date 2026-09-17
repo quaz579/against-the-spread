@@ -114,6 +114,7 @@ public class ExcelService : IExcelService
         // Scan each section row rather than inferring a date column from the
         // single row after the table header (which is often blank).
         DateTime? currentGameDate = null;
+        int dateCol = 0;
         for (int row = headerRow + 1; row <= worksheet.Dimension!.End.Row; row++)
         {
             var favoriteValue = worksheet.Cells[row, favoriteCol].Text?.Trim();
@@ -128,10 +129,19 @@ public class ExcelService : IExcelService
             bool foundDate = false;
             for (int col = 1; col <= lastDateCol; col++)
             {
-                if (TryParseDateHeader(worksheet.Cells[row, col], out DateTime parsedDate))
+                bool isFavoriteColumn = col == favoriteCol;
+                // Once the file's date column is known, a lone Favorite-only cell is an
+                // in-progress game row, not a header.
+                if (isFavoriteColumn && dateCol != 0 && dateCol != favoriteCol)
+                    continue;
+
+                bool throwOnInvalid = !isFavoriteColumn || dateCol == favoriteCol;
+                if (TryParseDateHeader(worksheet.Cells[row, col], throwOnInvalid, out DateTime parsedDate))
                 {
                     currentGameDate = parsedDate;
                     foundDate = true;
+                    if (dateCol == 0) dateCol = col;
+                    break;
                 }
             }
             if (foundDate || string.IsNullOrEmpty(favoriteValue))
@@ -179,14 +189,16 @@ public class ExcelService : IExcelService
     }
 
     // Only blank header cells may be skipped. Any other unparseable header
-    // must fail rather than silently reusing the previous section's date.
-    private static bool TryParseDateHeader(ExcelRange cell, out DateTime date)
+    // must fail rather than silently reusing the previous section's date -
+    // unless throwOnInvalid is false, which callers use for an unconfirmed
+    // Favorite-column candidate that may just be a partially entered team name.
+    private static bool TryParseDateHeader(ExcelRange cell, bool throwOnInvalid, out DateTime date)
     {
         var text = cell.Text.Trim();
         if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
             return true;
 
-        if (text.Length == 0)
+        if (text.Length == 0 || !throwOnInvalid)
             return false;
 
         throw new FormatException(

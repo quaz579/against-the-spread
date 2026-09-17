@@ -294,6 +294,57 @@ public class ExcelServiceTests : IDisposable
         result.Games.Select(g => g.Line).Should().Equal(-9.5m, -23.5m);
     }
 
+    [Fact]
+    public async Task ParseWeeklyLinesAsync_WithPartialGameRow_SkipsRowInsteadOfRejectingUpload()
+    {
+        using var package = new ExcelPackage(new MemoryStream(CreateWeek1LinesExcel()));
+        var sheet = package.Workbook.Worksheets[0];
+        // Admin has typed the team name but hasn't entered the line/underdog yet.
+        sheet.Cells[25, 2].Value = "Pittsburgh";
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream);
+
+        result.Games.Should().HaveCount(4);
+        result.Games.Should().NotContain(g => g.Favorite == "Pittsburgh");
+    }
+
+    [Fact]
+    public async Task ParseWeeklyLinesAsync_WithPartialGameRowInDedicatedDateColumnLayout_SkipsRowInsteadOfRejectingUpload()
+    {
+        using var package = new ExcelPackage(new MemoryStream(CreateSectionHeaderExcel("Friday, September 18, 2026", 3)));
+        var sheet = package.Workbook.Worksheets[0];
+        // Admin has typed the team name but hasn't entered the line/underdog yet.
+        sheet.Cells[10, 4].Value = "Georgia";
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream, 3, 2026);
+
+        result.Games.Should().HaveCount(2);
+        result.Games.Should().NotContain(g => g.Favorite == "Georgia");
+    }
+
+    [Fact]
+    public async Task ParseWeeklyLinesAsync_WithMultipleParseableDatesInHeaderRow_UsesFirstMatch()
+    {
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("Week 3 Lines");
+        sheet.Cells[5, 4].Value = "Favorite";
+        sheet.Cells[5, 5].Value = "Line";
+        sheet.Cells[5, 6].Value = "vs/at";
+        sheet.Cells[5, 7].Value = "Under Dog";
+        sheet.Cells[7, 1].Value = "Thursday, September 17, 2026";
+        sheet.Cells[7, 3].Value = "Friday, September 18, 2026";
+        sheet.Cells[9, 4].Value = "Pittsburgh";
+        sheet.Cells[9, 5].Value = -9.5;
+        sheet.Cells[9, 7].Value = "Syracuse";
+        using var stream = new MemoryStream(package.GetAsByteArray());
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream, 3, 2026);
+
+        result.Games.Should().ContainSingle().Which.GameDate.Should().Be(new DateTime(2026, 9, 17));
+    }
+
     [Theory]
     [InlineData(2)]
     [InlineData(11)]
