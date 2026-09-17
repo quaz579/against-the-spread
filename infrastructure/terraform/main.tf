@@ -17,7 +17,7 @@ provider "azurerm" {
 
 # Variables
 variable "subscription_id" {
-  description = "Azure subscription ID; set via TF_VAR_subscription_id, or leave unset to use ARM_SUBSCRIPTION_ID"
+  description = "Azure subscription ID. Locally: copy terraform.tfvars.example to terraform.tfvars (gitignored). In CI: set ARM_SUBSCRIPTION_ID from a repository secret and leave this unset."
   type        = string
   default     = null
 }
