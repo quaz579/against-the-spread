@@ -38,8 +38,11 @@ public class AdminAuthenticationTests : TestContext
         cut.Markup.Should().Contain("Signed in as:");
         cut.Markup.Should().Contain("verified@example.com");
         cut.Find("button").Click();
-        cut.Markup.Should().NotContain("verified@example.com");
-        JSInterop.Invocations.Should().Contain(i => i.Identifier == "googleAuth.disableAutoSelect");
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.Should().NotContain("verified@example.com");
+            JSInterop.VerifyInvoke("googleAuth.disableAutoSelect");
+        });
     }
 
     [Fact]
@@ -52,7 +55,7 @@ public class AdminAuthenticationTests : TestContext
 
         cut.Markup.Should().Contain("expired or invalid");
         cut.Markup.Should().NotContain("weekInput");
-        JSInterop.Invocations.Should().Contain(i => i.Identifier == "googleAuth.disableAutoSelect");
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("googleAuth.disableAutoSelect"));
     }
 
     [Fact]
