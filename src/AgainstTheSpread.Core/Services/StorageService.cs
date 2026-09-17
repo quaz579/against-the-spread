@@ -129,6 +129,8 @@ public class StorageService : IStorageService
             int matchingBlobs = 0;
             
             await foreach (var blobItem in _containerClient.GetBlobsAsync(
+                traits: BlobTraits.None,
+                states: BlobStates.None,
                 prefix: prefix,
                 cancellationToken: cancellationToken))
             {
