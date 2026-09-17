@@ -4,10 +4,10 @@
 
 This is a Progressive Web Application (PWA) for managing a weekly college football pick'em game built with:
 - **Frontend**: Blazor WebAssembly PWA
-- **Backend**: Azure Functions (C# .NET 8)
+- **Backend**: Azure Functions (C#, isolated worker; SDK version pinned in `global.json`)
 - **Storage**: Azure Blob Storage
 - **Infrastructure**: Terraform
-- **Testing**: xUnit, bUnit, Moq, FluentAssertions, Playwright
+- **Testing**: xUnit, bUnit, NSubstitute, AwesomeAssertions, Playwright
 
 ## Development Guidelines
 
@@ -179,15 +179,15 @@ tests/                           # E2E Playwright tests
 
 **When adding new NuGet packages:**
 - Only add if absolutely necessary
-- Verify compatibility with .NET 8
+- Verify compatibility with the .NET SDK pinned in `global.json`
 - Check for security vulnerabilities
 - Update project documentation
 
 **Common packages already in use:**
 - EPPlus (Excel processing)
 - Azure.Storage.Blobs
-- Moq (mocking)
-- FluentAssertions (test assertions)
+- NSubstitute (mocking)
+- AwesomeAssertions (test assertions)
 - bUnit (Blazor component testing)
 
 ### API Design
@@ -251,7 +251,7 @@ fix(web): correct game selection validation
 
 ### Security Considerations
 
-**MVP Security (No Authentication):**
+**Admin endpoints require Google authentication** (see `AUTHENTICATION_FIX.md`); weekly/bowl read and picks-generation APIs stay anonymous by design. Beyond that:
 - Validate all inputs
 - Set appropriate CORS policies
 - Enforce file size limits
@@ -271,7 +271,6 @@ fix(web): correct game selection validation
 - `CONTRIBUTING.md` - Development workflow
 - `TESTING.md` - Testing strategy
 - `.agents.md` - Agent development guide
-- `implementation-plan.md` - Development roadmap
 
 ### Performance
 
@@ -311,16 +310,14 @@ fix(web): correct game selection validation
 - Updating Page Object Models in `tests/pages/`
 - Updating `tests/README.md` if test setup changes
 
-### MVP Scope Focus
+### Current Scope Focus
 
-**Current phase:** Building MVP functionality
-- Admin manually uploads weekly lines (no web UI needed)
-- Users select 6 games and download Excel picks
+- Admin uploads weekly and bowl lines through the authenticated admin web UI
+- Users select games and download Excel picks
 - PWA installable on mobile devices
 - Focus on core functionality, not enhancements
 
-**Out of scope for MVP:**
-- User authentication (trust-based)
+**Out of scope:**
 - Pick history storage
 - Automated scoring
 - Leaderboards
@@ -334,7 +331,6 @@ fix(web): correct game selection validation
 
 **Documentation:**
 - `.agents.md` - Comprehensive agent guide
-- `implementation-plan.md` - Detailed implementation steps
 - `TESTING.md` - Complete testing guide (unit tests)
 - `CONTRIBUTING.md` - Contribution guidelines
 

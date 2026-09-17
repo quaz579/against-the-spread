@@ -19,7 +19,7 @@ A Progressive Web Application (PWA) for managing a weekly college football pick'
 ## 🏗️ Architecture
 
 **Frontend**: Blazor WebAssembly PWA  
-**Backend**: Azure Functions (C# .NET 8)  
+**Backend**: Azure Functions (C#, isolated worker; SDK version pinned in `global.json`)  
 **Storage**: Azure Blob Storage  
 **Infrastructure**: Terraform  
 **CI/CD**: GitHub Actions
@@ -54,7 +54,7 @@ We provide multiple ways to work with this repository using GitHub Copilot:
 - ✅ **GitHub Copilot Coding Agent**: Automatically configured via `.github/workflows/copilot-setup-steps.yml` - when the agent works on code, it gets a pre-configured environment with all tools
 - ✅ **GitHub Codespaces**: Cloud-based development environment, no local installation needed
 - ✅ **VS Code Dev Container**: Docker-based local development with all tools pre-installed
-- ✅ **Pre-configured**: .NET 8, Node.js, Azure Functions, Azurite, Playwright
+- ✅ **Pre-configured**: .NET (SDK pinned in `global.json`), Node.js, Azure Functions, Azurite, Playwright
 - ✅ **No Firewall Issues**: All services run locally/in-cloud
 - ✅ **One-Click Start**: `./start-local.sh` starts everything
 
@@ -66,7 +66,7 @@ If you prefer to install tools manually:
 
 #### Prerequisites
 
-- .NET 8 SDK
+- .NET SDK (version pinned in `global.json`)
 - Azure CLI
 - Azure Functions Core Tools (v4)
 - Node.js (for Azure Static Web Apps CLI)
@@ -138,7 +138,6 @@ against-the-spread/
 ├── reference-docs/          # Excel templates and examples
 ├── docs/                    # Additional documentation
 ├── .agents.md              # Agent development guide
-├── implementation-plan.md  # Detailed implementation plan
 └── README.md               # This file
 ```
 
@@ -224,10 +223,9 @@ Running on Azure free tier:
 This project uses AI-assisted development. Please review the following before contributing:
 
 1. Read [`.agents.md`](.agents.md) for development guidelines
-2. Follow the [implementation plan](implementation-plan.md)
-3. Write tests first (TDD approach)
-4. Ensure all tests pass before submitting PR
-5. Update documentation as needed
+2. Write tests first (TDD approach)
+3. Ensure all tests pass before submitting PR
+4. Update documentation as needed
 
 ### Development Workflow
 

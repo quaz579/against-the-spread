@@ -15,7 +15,7 @@ Weekly and bowl browser suites seed deterministic JSON directly into local Azuri
 ## Prerequisites
 
 - Node.js 22+
-- .NET SDK 8
+- .NET SDK (version pinned in `../global.json`)
 - Azure Functions Core Tools 4
 - Azurite
 - Azure Static Web Apps CLI

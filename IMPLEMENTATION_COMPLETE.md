@@ -105,7 +105,7 @@ A fully configured development container that works with:
 ### Consistent Environment
 
 Every developer gets the exact same environment:
-- ✅ Same .NET version (8.0)
+- ✅ Same .NET SDK (both resolve `global.json`)
 - ✅ Same Node.js version (22)
 - ✅ Same Azure Functions Core Tools (v4)
 - ✅ Same Azurite version
@@ -116,7 +116,7 @@ Every developer gets the exact same environment:
 ### Pre-installed Everything
 
 The container automatically installs:
-- .NET 8 SDK
+- .NET SDK (version pinned in `global.json`)
 - Node.js 22
 - Azure Functions Core Tools v4
 - Azurite

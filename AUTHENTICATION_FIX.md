@@ -15,7 +15,7 @@ which is not available on the Free plan and is not trusted by the current API.
    Azure Static Web Apps managed APIs replace the standard `Authorization`
    header with an internal proxy credential, so it cannot carry the Google
    token on this hosting plan.
-5. The managed .NET 8 API validates Google's signature, issuer, expiry, exact
+5. The managed .NET API validates Google's signature, issuer, expiry, exact
    audience, and `email_verified`, then checks the normalized email against
    `ADMIN_EMAILS`.
 6. Authentication failures return generic `401`; authenticated non-admin users

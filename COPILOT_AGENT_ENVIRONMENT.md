@@ -20,7 +20,7 @@ This file must be present on the default branch for GitHub Copilot to use it.
 The Copilot coding agent's environment includes:
 
 ### Development Tools
-- **.NET 9 SDK** - For building the Blazor Web App and Azure Functions
+- **.NET SDK** (version pinned in `global.json`) - For building the Blazor Web App and Azure Functions
 - **Node.js 22** - For running Playwright tests and npm tools
 - **Azure Functions Core Tools v4** - For running the Functions API locally
 - **Azurite** - Azure Storage Emulator for local blob storage (no Azure subscription needed)
@@ -45,8 +45,8 @@ All services run locally in the GitHub Actions runner:
 - Functions and Web App connect to local Azurite instance
 
 ### Consistent with CI/CD
-The environment matches the smoke-tests workflow exactly:
-- Same .NET version (9.0.x)
+The environment matches the `e2e-tests.yml` workflow exactly:
+- Same .NET SDK (both resolve `global.json`)
 - Same Node.js version (22)
 - Same Azure Functions Core Tools version (v4)
 - Same Azurite setup
@@ -138,15 +138,15 @@ GitHub Copilot Coding Agent
     GitHub Actions Runner
     (copilot-setup-steps.yml)
           ↓
-    ┌─────────────────────┐
-    │ Pre-installed Tools │
-    ├─────────────────────┤
-    │ • .NET 9            │
-    │ • Node.js 22        │
-    │ • Azure Functions   │
-    │ • Azurite           │
-    │ • Playwright        │
-    └─────────────────────┘
+    ┌──────────────────────┐
+    │ Pre-installed Tools  │
+    ├──────────────────────┤
+    │ • .NET (global.json) │
+    │ • Node.js 22         │
+    │ • Azure Functions    │
+    │ • Azurite            │
+    │ • Playwright         │
+    └──────────────────────┘
           ↓
     Agent can immediately:
     • Build solution
@@ -164,7 +164,7 @@ GitHub Copilot Coding Agent
 
 ### For CI/CD
 - Agent tests changes before committing
-- Same tools as smoke-tests workflow
+- Same tools as the `e2e-tests.yml` workflow
 - Early detection of build/test issues
 
 ### For Security

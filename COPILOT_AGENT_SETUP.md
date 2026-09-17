@@ -13,7 +13,7 @@ The user requested customization of the GitHub Copilot coding agent's developmen
 This workflow configures the agent's ephemeral GitHub Actions-based environment with:
 
 - **Development Tools**:
-  - .NET 9 SDK for building Blazor and Functions
+  - .NET SDK (version pinned in `global.json`) for building Blazor and Functions
   - Node.js 22 with npm dependency caching
   - Azure Functions Core Tools v4
   - Azurite (Azure Storage Emulator)
@@ -57,8 +57,8 @@ The workflow strictly adheres to GitHub's specifications:
 
 ### Matches CI Environment
 
-The agent environment matches the smoke-tests workflow exactly:
-- Same .NET version (9.0.x)
+The agent environment matches the `e2e-tests.yml` workflow exactly:
+- Same .NET SDK (both resolve `global.json`)
 - Same Node.js version (22)
 - Same Azure Functions Core Tools (v4)
 - Same Azurite setup
@@ -170,7 +170,7 @@ All three use identical tools and versions for consistency.
 The workflow setup includes:
 - ✅ Manual testing via workflow_dispatch
 - ✅ Automatic validation on file changes
-- ✅ Integration with existing smoke-tests
+- ✅ Integration with existing `e2e-tests.yml` CI job
 - ✅ Documentation for troubleshooting
 
 ## Success Criteria Met

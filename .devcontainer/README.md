@@ -5,7 +5,7 @@ This development container provides a complete, pre-configured environment for d
 ## What's Included
 
 ### Tools & Runtimes
-- **.NET 8 SDK** - For building the Blazor app and Azure Functions
+- **.NET SDK** - version pinned in `global.json`; for building the Blazor app and Azure Functions
 - **Node.js 22** - For running Playwright tests and Azurite
 - **Azure Functions Core Tools v4** - For running the Functions API locally
 - **Azurite** - Azure Storage Emulator for local blob storage
@@ -249,7 +249,7 @@ azurite --location /tmp/azurite --blobPort 10000 --silent &
 ```bash
 # Run specific Playwright test file
 cd tests
-npx playwright test specs/smoke-tests.spec.ts
+npx playwright test specs/full-flow.spec.ts
 
 # Run .NET tests for a specific project
 dotnet test src/AgainstTheSpread.Tests/AgainstTheSpread.Tests.csproj
@@ -269,13 +269,13 @@ dotnet test src/AgainstTheSpread.Tests/AgainstTheSpread.Tests.csproj
 
 ## CI/CD Integration
 
-The dev container matches the CI environment configured in `.github/workflows/smoke-tests.yml`:
+The dev container matches the CI environment configured in `.github/workflows/e2e-tests.yml`:
 
-- ✅ Same .NET version (8.0)
-- ✅ Same Node.js version (22)
-- ✅ Same Azure Functions Core Tools (v4)
-- ✅ Same Azurite version
-- ✅ Same Playwright version
+- Same .NET SDK (both resolve `global.json`)
+- Same Node.js version (22)
+- Same Azure Functions Core Tools (v4)
+- Same Azurite version
+- Same Playwright version
 
 This ensures **tests work the same locally and in CI**.
 
