@@ -53,7 +53,7 @@ Added a prominent section at the top linking to the Copilot environment setup.
 
 ### Pre-installed Tools
 The dev container includes all necessary tools:
-- **.NET 8 SDK** - For building Blazor and Azure Functions
+- **.NET SDK** (version pinned in `global.json`) - For building Blazor and Azure Functions
 - **Node.js 22** - For Playwright tests and tooling
 - **Azure Functions Core Tools v4** - For running Functions locally
 - **Azurite** - Azure Storage Emulator (no Azure subscription needed)
@@ -202,7 +202,7 @@ When you open the dev container, the `setup.sh` script automatically:
 ## CI/CD Integration
 
 The dev container matches the CI environment exactly:
-- Same .NET version (8.0)
+- Same .NET SDK (both resolve `global.json`)
 - Same Node.js version (22)
 - Same Azure Functions Core Tools version (v4)
 - Same Azurite version

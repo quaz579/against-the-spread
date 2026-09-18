@@ -1,5 +1,5 @@
 using AgainstTheSpread.Web.Helpers;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace AgainstTheSpread.Tests.Web.Helpers;
 

@@ -1,6 +1,6 @@
 using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Web.Services;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
 using System.Net.Http.Json;

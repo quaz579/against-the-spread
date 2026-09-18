@@ -90,7 +90,9 @@ wwwroot/service-worker-assets.js
 terraform-outputs.json
 crash.log
 crash.*.log
+*.tfvars
 *.tfvars.json
+!*.tfvars.example
 override.tf
 override.tf.json
 *_override.tf

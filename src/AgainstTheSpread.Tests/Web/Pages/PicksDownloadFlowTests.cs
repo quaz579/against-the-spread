@@ -4,7 +4,7 @@ using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Web.Services;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using NSubstitute;
 
 namespace AgainstTheSpread.Tests.Web.Pages;
 
@@ -21,18 +21,18 @@ public class PicksDownloadFlowTests : TestContext
             BaseAddress = new Uri("https://example.test/")
         };
 
-        var logoService = new Mock<ITeamLogoService>();
-        logoService.Setup(service => service.InitializeAsync(It.IsAny<HttpClient>()))
+        var logoService = Substitute.For<ITeamLogoService>();
+        logoService.InitializeAsync(Arg.Any<HttpClient>())
             .Returns(Task.CompletedTask);
 
-        var colorService = new Mock<ITeamColorService>();
-        colorService.Setup(service => service.InitializeAsync(It.IsAny<HttpClient>()))
+        var colorService = Substitute.For<ITeamColorService>();
+        colorService.InitializeAsync(Arg.Any<HttpClient>())
             .Returns(Task.CompletedTask);
 
         Services.AddLogging();
         Services.AddSingleton(httpClient);
-        Services.AddSingleton(logoService.Object);
-        Services.AddSingleton(colorService.Object);
+        Services.AddSingleton(logoService);
+        Services.AddSingleton(colorService);
         Services.AddSingleton<ApiService>();
     }
 

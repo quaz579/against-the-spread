@@ -2,13 +2,14 @@ using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Functions;
 using AgainstTheSpread.Functions.Authentication;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using System.Collections.Specialized;
 using System.Net;
 using System.Text.Json;
@@ -22,46 +23,42 @@ public class UploadFunctionAuthorizationTests
     public async Task UploadLines_Run_InvokesSharedAuthorizationBeforeProcessing()
     {
         var authorization = DenyingAuthorization();
-        var excel = new Mock<IExcelService>(MockBehavior.Strict);
-        var storage = new Mock<IStorageService>(MockBehavior.Strict);
+        var excel = Substitute.For<IExcelService>();
+        var storage = Substitute.For<IStorageService>();
         var function = new UploadLinesFunction(
-            Mock.Of<ILogger<UploadLinesFunction>>(),
-            excel.Object,
-            storage.Object,
-            authorization.Object);
+            Substitute.For<ILogger<UploadLinesFunction>>(),
+            excel,
+            storage,
+            authorization);
         var request = CreateRequest();
 
         var response = await function.Run(request, CancellationToken.None);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        authorization.Verify(
-            a => a.AuthorizeAsync(request, It.IsAny<CancellationToken>()),
-            Times.Once);
-        excel.VerifyNoOtherCalls();
-        storage.VerifyNoOtherCalls();
+        await authorization.Received(1).AuthorizeAsync(request, Arg.Any<CancellationToken>());
+        excel.ReceivedCalls().Should().BeEmpty();
+        storage.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
     public async Task UploadBowlLines_Run_InvokesSharedAuthorizationBeforeProcessing()
     {
         var authorization = DenyingAuthorization();
-        var excel = new Mock<IBowlExcelService>(MockBehavior.Strict);
-        var storage = new Mock<IStorageService>(MockBehavior.Strict);
+        var excel = Substitute.For<IBowlExcelService>();
+        var storage = Substitute.For<IStorageService>();
         var function = new UploadBowlLinesFunction(
-            Mock.Of<ILogger<UploadBowlLinesFunction>>(),
-            excel.Object,
-            storage.Object,
-            authorization.Object);
+            Substitute.For<ILogger<UploadBowlLinesFunction>>(),
+            excel,
+            storage,
+            authorization);
         var request = CreateRequest();
 
         var response = await function.Run(request, CancellationToken.None);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        authorization.Verify(
-            a => a.AuthorizeAsync(request, It.IsAny<CancellationToken>()),
-            Times.Once);
-        excel.VerifyNoOtherCalls();
-        storage.VerifyNoOtherCalls();
+        await authorization.Received(1).AuthorizeAsync(request, Arg.Any<CancellationToken>());
+        excel.ReceivedCalls().Should().BeEmpty();
+        storage.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -75,25 +72,27 @@ public class UploadFunctionAuthorizationTests
             Games = new List<Game> { new() { Favorite = "A", Underdog = "B" } }
         };
         var authorization = AuthorizedAuthorization();
-        var excel = new Mock<IExcelService>(MockBehavior.Strict);
-        excel.Setup(e => e.ParseWeeklyLinesAsync(
-                It.Is<Stream>(s => StreamMatches(s, workbook)),
-                1,
-                2026,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(weeklyLines);
-        var storage = new Mock<IStorageService>(MockBehavior.Strict);
-        storage.Setup(s => s.UploadWeeklyLinesAsync(
-                It.Is<Stream>(stream => StreamMatches(stream, workbook)),
-                1,
-                2026,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync("stored");
+        byte[]? excelReceivedBytes = null;
+        byte[]? storageReceivedBytes = null;
+        var excel = Substitute.For<IExcelService>();
+        excel.ParseWeeklyLinesAsync(Arg.Any<Stream>(), 1, 2026, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                excelReceivedBytes = SnapshotBytes(callInfo.ArgAt<Stream>(0));
+                return weeklyLines;
+            });
+        var storage = Substitute.For<IStorageService>();
+        storage.UploadWeeklyLinesAsync(Arg.Any<Stream>(), 1, 2026, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                storageReceivedBytes = SnapshotBytes(callInfo.ArgAt<Stream>(0));
+                return "stored";
+            });
         var function = new UploadLinesFunction(
-            Mock.Of<ILogger<UploadLinesFunction>>(),
-            excel.Object,
-            storage.Object,
-            authorization.Object);
+            Substitute.For<ILogger<UploadLinesFunction>>(),
+            excel,
+            storage,
+            authorization);
         var request = CreateRequest(
             new NameValueCollection { ["week"] = "1", ["year"] = "2026" },
             workbook);
@@ -101,9 +100,13 @@ public class UploadFunctionAuthorizationTests
         var response = await function.Run(request, CancellationToken.None);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        authorization.Verify(a => a.AuthorizeAsync(request, It.IsAny<CancellationToken>()), Times.Once);
-        excel.VerifyAll();
-        storage.VerifyAll();
+        await authorization.Received(1).AuthorizeAsync(request, Arg.Any<CancellationToken>());
+        await excel.Received(1).ParseWeeklyLinesAsync(Arg.Any<Stream>(), 1, 2026, Arg.Any<CancellationToken>());
+        excelReceivedBytes.Should().Equal(workbook);
+        excel.ReceivedCalls().Should().HaveCount(1);
+        await storage.Received(1).UploadWeeklyLinesAsync(Arg.Any<Stream>(), 1, 2026, Arg.Any<CancellationToken>());
+        storageReceivedBytes.Should().Equal(workbook);
+        storage.ReceivedCalls().Should().HaveCount(1);
     }
 
     [Fact]
@@ -116,23 +119,27 @@ public class UploadFunctionAuthorizationTests
             Games = new List<BowlGame> { new() { GameNumber = 1, Favorite = "A", Underdog = "B" } }
         };
         var authorization = AuthorizedAuthorization();
-        var excel = new Mock<IBowlExcelService>(MockBehavior.Strict);
-        excel.Setup(e => e.ParseBowlLinesAsync(
-                It.Is<Stream>(s => StreamMatches(s, workbook)),
-                2026,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(bowlLines);
-        var storage = new Mock<IStorageService>(MockBehavior.Strict);
-        storage.Setup(s => s.UploadBowlLinesAsync(
-                It.Is<Stream>(stream => StreamMatches(stream, workbook)),
-                2026,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync("stored");
+        byte[]? excelReceivedBytes = null;
+        byte[]? storageReceivedBytes = null;
+        var excel = Substitute.For<IBowlExcelService>();
+        excel.ParseBowlLinesAsync(Arg.Any<Stream>(), 2026, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                excelReceivedBytes = SnapshotBytes(callInfo.ArgAt<Stream>(0));
+                return bowlLines;
+            });
+        var storage = Substitute.For<IStorageService>();
+        storage.UploadBowlLinesAsync(Arg.Any<Stream>(), 2026, Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                storageReceivedBytes = SnapshotBytes(callInfo.ArgAt<Stream>(0));
+                return "stored";
+            });
         var function = new UploadBowlLinesFunction(
-            Mock.Of<ILogger<UploadBowlLinesFunction>>(),
-            excel.Object,
-            storage.Object,
-            authorization.Object);
+            Substitute.For<ILogger<UploadBowlLinesFunction>>(),
+            excel,
+            storage,
+            authorization);
         var request = CreateRequest(
             new NameValueCollection { ["year"] = "2026" },
             workbook);
@@ -140,26 +147,51 @@ public class UploadFunctionAuthorizationTests
         var response = await function.Run(request, CancellationToken.None);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        authorization.Verify(a => a.AuthorizeAsync(request, It.IsAny<CancellationToken>()), Times.Once);
-        excel.VerifyAll();
-        storage.VerifyAll();
+        await authorization.Received(1).AuthorizeAsync(request, Arg.Any<CancellationToken>());
+        await excel.Received(1).ParseBowlLinesAsync(Arg.Any<Stream>(), 2026, Arg.Any<CancellationToken>());
+        excelReceivedBytes.Should().Equal(workbook);
+        excel.ReceivedCalls().Should().HaveCount(1);
+        await storage.Received(1).UploadBowlLinesAsync(Arg.Any<Stream>(), 2026, Arg.Any<CancellationToken>());
+        storageReceivedBytes.Should().Equal(workbook);
+        storage.ReceivedCalls().Should().HaveCount(1);
     }
 
-    private static Mock<IAdminAuthorizationService> DenyingAuthorization()
+    [Fact]
+    public async Task UploadLines_Run_InvalidWorkbook_ReturnsBadRequestWithoutCallingStorage()
     {
-        var authorization = new Mock<IAdminAuthorizationService>();
+        var excel = Substitute.For<IExcelService>();
+        const string message = "Invalid date header at C11: 'Friday, September 19, 2026'. Check the weekday.";
+        excel.ParseWeeklyLinesAsync(Arg.Any<Stream>(), 3, 2026, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new FormatException(message));
+        var storage = Substitute.For<IStorageService>();
+        var function = new UploadLinesFunction(Substitute.For<ILogger<UploadLinesFunction>>(),
+            excel, storage, AuthorizedAuthorization());
+        var request = CreateRequest(new NameValueCollection { ["week"] = "3", ["year"] = "2026" }, new byte[] { 1 });
+
+        var response = await function.Run(request, CancellationToken.None);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Body.Position = 0;
+        using var body = await JsonDocument.ParseAsync(response.Body);
+        body.RootElement.GetProperty("error").GetString().Should().Be(message);
+        storage.ReceivedCalls().Should().BeEmpty();
+    }
+
+    private static IAdminAuthorizationService DenyingAuthorization()
+    {
+        var authorization = Substitute.For<IAdminAuthorizationService>();
         authorization
-            .Setup(a => a.AuthorizeAsync(It.IsAny<HttpRequestData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdminAuthorizationResult(AdminAuthorizationStatus.Unauthorized));
+            .AuthorizeAsync(Arg.Any<HttpRequestData>(), Arg.Any<CancellationToken>())
+            .Returns(new AdminAuthorizationResult(AdminAuthorizationStatus.Unauthorized));
         return authorization;
     }
 
-    private static Mock<IAdminAuthorizationService> AuthorizedAuthorization()
+    private static IAdminAuthorizationService AuthorizedAuthorization()
     {
-        var authorization = new Mock<IAdminAuthorizationService>();
+        var authorization = Substitute.For<IAdminAuthorizationService>();
         authorization
-            .Setup(a => a.AuthorizeAsync(It.IsAny<HttpRequestData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdminAuthorizationResult(AdminAuthorizationStatus.Authorized, "admin@example.test"));
+            .AuthorizeAsync(Arg.Any<HttpRequestData>(), Arg.Any<CancellationToken>())
+            .Returns(new AdminAuthorizationResult(AdminAuthorizationStatus.Authorized, "admin@example.test"));
         return authorization;
     }
 
@@ -167,7 +199,7 @@ public class UploadFunctionAuthorizationTests
         NameValueCollection? query = null,
         byte[]? body = null)
     {
-        var context = new Mock<FunctionContext>();
+        var context = Substitute.For<FunctionContext>();
         var workerOptions = Options.Create(new WorkerOptions
         {
             Serializer = new JsonObjectSerializer(new JsonSerializerOptions(JsonSerializerDefaults.Web))
@@ -175,26 +207,28 @@ public class UploadFunctionAuthorizationTests
         var services = new ServiceCollection()
             .AddSingleton<IOptions<WorkerOptions>>(workerOptions)
             .BuildServiceProvider();
-        context.SetupGet(c => c.InstanceServices).Returns(services);
-        var response = new Mock<HttpResponseData>(context.Object);
-        response.SetupProperty(r => r.StatusCode);
-        response.SetupGet(r => r.Headers).Returns(new HttpHeadersCollection());
-        response.SetupProperty(r => r.Body, new MemoryStream());
+        context.InstanceServices.Returns(services);
+        var response = Substitute.For<HttpResponseData>(context);
+        response.Headers.Returns(new HttpHeadersCollection());
+        response.Body = new MemoryStream();
 
-        var request = new Mock<HttpRequestData>(context.Object);
-        request.SetupGet(r => r.Query).Returns(query ?? new NameValueCollection());
-        request.SetupGet(r => r.Body).Returns(new MemoryStream(body ?? Array.Empty<byte>()));
-        request.Setup(r => r.CreateResponse()).Returns(response.Object);
-        return request.Object;
+        var request = Substitute.For<HttpRequestData>(context);
+        request.Query.Returns(query ?? new NameValueCollection());
+        request.Body.Returns(new MemoryStream(body ?? Array.Empty<byte>()));
+        request.CreateResponse().Returns(response);
+        return request;
     }
 
-    private static bool StreamMatches(Stream stream, byte[] expected)
+    // Snapshotting here (inside the substitute's Returns callback, while the SUT's `using`-scoped
+    // stream is still open) avoids re-reading the stream during a later Received() assertion, when
+    // UploadLinesFunction.Run's `using var stream` has already disposed it.
+    private static byte[] SnapshotBytes(Stream stream)
     {
         var originalPosition = stream.Position;
         stream.Position = 0;
         using var copy = new MemoryStream();
         stream.CopyTo(copy);
         stream.Position = originalPosition;
-        return copy.ToArray().SequenceEqual(expected);
+        return copy.ToArray();
     }
 }

@@ -1,9 +1,9 @@
 using AgainstTheSpread.Core.Interfaces;
 using AgainstTheSpread.Functions;
 using AgainstTheSpread.Functions.Authentication;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 
 namespace AgainstTheSpread.Tests.Functions;
 
@@ -13,10 +13,10 @@ public class UploadLinesFunctionTests
     public void Constructor_WithSharedAuthorizationService_CreatesInstance()
     {
         var function = new UploadLinesFunction(
-            Mock.Of<ILogger<UploadLinesFunction>>(),
-            Mock.Of<IExcelService>(),
-            Mock.Of<IStorageService>(),
-            Mock.Of<IAdminAuthorizationService>());
+            Substitute.For<ILogger<UploadLinesFunction>>(),
+            Substitute.For<IExcelService>(),
+            Substitute.For<IStorageService>(),
+            Substitute.For<IAdminAuthorizationService>());
 
         function.Should().NotBeNull();
     }

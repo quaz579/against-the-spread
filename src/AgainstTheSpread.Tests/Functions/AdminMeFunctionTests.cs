@@ -1,10 +1,10 @@
 using AgainstTheSpread.Functions;
 using AgainstTheSpread.Functions.Authentication;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using System.Net;
 using System.Text.Json;
 
@@ -15,15 +15,15 @@ public class AdminMeFunctionTests
     [Fact]
     public async Task Run_AuthorizedIdentity_ReturnsOnlyVerifiedEmail()
     {
-        var authorization = new Mock<IAdminAuthorizationService>();
+        var authorization = Substitute.For<IAdminAuthorizationService>();
         authorization
-            .Setup(a => a.AuthorizeAsync(It.IsAny<HttpRequestData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdminAuthorizationResult(
+            .AuthorizeAsync(Arg.Any<HttpRequestData>(), Arg.Any<CancellationToken>())
+            .Returns(new AdminAuthorizationResult(
                 AdminAuthorizationStatus.Authorized,
                 "verified@example.com"));
         var function = new AdminMeFunction(
-            Mock.Of<ILogger<AdminMeFunction>>(),
-            authorization.Object);
+            Substitute.For<ILogger<AdminMeFunction>>(),
+            authorization);
         var (request, response) = CreateRequest();
 
         var result = await function.Run(request, CancellationToken.None);
@@ -43,13 +43,13 @@ public class AdminMeFunctionTests
         AdminAuthorizationStatus authorizationStatus,
         HttpStatusCode expectedStatus)
     {
-        var authorization = new Mock<IAdminAuthorizationService>();
+        var authorization = Substitute.For<IAdminAuthorizationService>();
         authorization
-            .Setup(a => a.AuthorizeAsync(It.IsAny<HttpRequestData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdminAuthorizationResult(authorizationStatus));
+            .AuthorizeAsync(Arg.Any<HttpRequestData>(), Arg.Any<CancellationToken>())
+            .Returns(new AdminAuthorizationResult(authorizationStatus));
         var function = new AdminMeFunction(
-            Mock.Of<ILogger<AdminMeFunction>>(),
-            authorization.Object);
+            Substitute.For<ILogger<AdminMeFunction>>(),
+            authorization);
         var (request, response) = CreateRequest();
 
         var result = await function.Run(request, CancellationToken.None);
@@ -63,15 +63,14 @@ public class AdminMeFunctionTests
 
     private static (HttpRequestData Request, HttpResponseData Response) CreateRequest()
     {
-        var context = new Mock<FunctionContext>();
-        var response = new Mock<HttpResponseData>(context.Object);
-        response.SetupProperty(r => r.StatusCode);
-        response.SetupGet(r => r.Headers).Returns(new HttpHeadersCollection());
-        response.SetupProperty(r => r.Body, new MemoryStream());
+        var context = Substitute.For<FunctionContext>();
+        var response = Substitute.For<HttpResponseData>(context);
+        response.Headers.Returns(new HttpHeadersCollection());
+        response.Body = new MemoryStream();
 
-        var request = new Mock<HttpRequestData>(context.Object);
-        request.Setup(r => r.CreateResponse()).Returns(response.Object);
+        var request = Substitute.For<HttpRequestData>(context);
+        request.CreateResponse().Returns(response);
 
-        return (request.Object, response.Object);
+        return (request, response);
     }
 }

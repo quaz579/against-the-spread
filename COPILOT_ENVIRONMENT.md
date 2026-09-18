@@ -5,7 +5,7 @@ This guide helps you quickly set up a complete development environment for the A
 ## GitHub Copilot Coding Agent Environment
 
 **For GitHub Copilot coding agent users:** The repository includes a pre-configured environment setup at `.github/workflows/copilot-setup-steps.yml`. This workflow automatically prepares the agent's environment with:
-- .NET 8 SDK
+- .NET SDK (version pinned in `global.json`)
 - Node.js 22
 - Azure Functions Core Tools v4
 - Azurite (Azure Storage Emulator)
@@ -26,7 +26,7 @@ When GitHub Copilot coding agent works on this repository, it will automatically
 
 2. **Wait for setup (5-10 minutes):**
    - The environment will automatically install all tools
-   - .NET 8, Node.js, Azure Functions, Azurite, Playwright
+   - .NET (SDK pinned in `global.json`), Node.js, Azure Functions, Azurite, Playwright
    - All dependencies and test browsers
 
 3. **Start developing:**
@@ -85,7 +85,7 @@ When GitHub Copilot coding agent works on this repository, it will automatically
 Both options provide:
 
 ### Pre-installed Tools
-- ✅ .NET 8 SDK
+- ✅ .NET SDK (version pinned in `global.json`)
 - ✅ Node.js 22
 - ✅ Azure Functions Core Tools v4
 - ✅ Azurite (Azure Storage Emulator)
@@ -246,7 +246,7 @@ Everything runs locally - no firewall issues!
 
 If you encounter issues:
 1. Check `.devcontainer/README.md` troubleshooting section
-2. Review GitHub Actions workflow (`.github/workflows/smoke-tests.yml`)
+2. Review GitHub Actions workflow (`.github/workflows/e2e-tests.yml`)
 3. Open an issue on GitHub
 
 ---

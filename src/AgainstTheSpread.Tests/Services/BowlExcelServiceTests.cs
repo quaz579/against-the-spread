@@ -1,6 +1,6 @@
 using AgainstTheSpread.Core.Models;
 using AgainstTheSpread.Core.Services;
-using FluentAssertions;
+using AwesomeAssertions;
 using OfficeOpenXml;
 using Xunit;
 

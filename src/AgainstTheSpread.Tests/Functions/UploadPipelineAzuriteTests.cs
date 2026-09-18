@@ -4,13 +4,13 @@ using AgainstTheSpread.Functions.Authentication;
 using AgainstTheSpread.Web.Services;
 using Azure.Core.Serialization;
 using Azure.Storage.Blobs;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using OfficeOpenXml;
 using System.Collections.Specialized;
 using System.Diagnostics;
@@ -88,6 +88,33 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
         stored!.Games.Should().ContainSingle();
         stored.Games[0].Favorite.Should().Be("Integration Favorite");
         storedWorkbook.Should().Equal(workbook);
+    }
+
+    [Fact]
+    public async Task WeeklyClientUpload_InvalidDate_ReturnsCellErrorAndPreservesExistingBlobs()
+    {
+        const int week = 51;
+        const int year = 2099;
+        using var valid = new MemoryStream(CreateWeeklyWorkbook());
+        await api.UploadLinesAsync(week, year, valid, "valid.xlsx", "integration-token");
+        var originalJson = await DownloadBlob($"lines/week-{week}-{year}.json");
+        var originalWorkbook = await DownloadBlob($"lines/week-{week}-{year}.xlsx");
+
+        using var package = new ExcelPackage(new MemoryStream(CreateWeeklyWorkbook()));
+        var sheet = package.Workbook.Worksheets[0];
+        sheet.Cells[11, 1].Value = "Friday, September 19, 2026";
+        sheet.Cells[13, 2].Value = "Another Favorite";
+        sheet.Cells[13, 3].Value = -7.5;
+        sheet.Cells[13, 5].Value = "Another Underdog";
+        using var invalid = new MemoryStream(package.GetAsByteArray());
+
+        var response = await api.UploadLinesAsync(week, year, invalid, "invalid.xlsx", "integration-token");
+
+        (await DownloadBlob($"lines/week-{week}-{year}.json")).Should().Equal(originalJson);
+        (await DownloadBlob($"lines/week-{week}-{year}.xlsx")).Should().Equal(originalWorkbook);
+        response.Should().NotBeNull();
+        response!.Success.Should().BeFalse();
+        response.Message.Should().Contain("A11").And.Contain("Friday, September 19, 2026");
     }
 
     [Fact]
@@ -238,7 +265,7 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
             HttpRequestMessage source,
             CancellationToken cancellationToken)
         {
-            var context = new Mock<FunctionContext>();
+            var context = Substitute.For<FunctionContext>();
             var workerOptions = Options.Create(new WorkerOptions
             {
                 Serializer = new JsonObjectSerializer(new JsonSerializerOptions(JsonSerializerDefaults.Web))
@@ -246,12 +273,11 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
             var services = new ServiceCollection()
                 .AddSingleton<IOptions<WorkerOptions>>(workerOptions)
                 .BuildServiceProvider();
-            context.SetupGet(c => c.InstanceServices).Returns(services);
+            context.InstanceServices.Returns(services);
 
-            var functionResponse = new Mock<HttpResponseData>(context.Object);
-            functionResponse.SetupProperty(r => r.StatusCode);
-            functionResponse.SetupGet(r => r.Headers).Returns(new HttpHeadersCollection());
-            functionResponse.SetupProperty(r => r.Body, new MemoryStream());
+            var functionResponse = Substitute.For<HttpResponseData>(context);
+            functionResponse.Headers.Returns(new HttpHeadersCollection());
+            functionResponse.Body = new MemoryStream();
 
             var headers = new HttpHeadersCollection();
             foreach (var header in source.Headers)
@@ -270,12 +296,12 @@ public sealed class UploadPipelineAzuriteTests : IDisposable
                 ? Array.Empty<byte>()
                 : await source.Content.ReadAsByteArrayAsync(cancellationToken);
 
-            var functionRequest = new Mock<HttpRequestData>(context.Object);
-            functionRequest.SetupGet(r => r.Headers).Returns(headers);
-            functionRequest.SetupGet(r => r.Query).Returns(query);
-            functionRequest.SetupGet(r => r.Body).Returns(new MemoryStream(body));
-            functionRequest.Setup(r => r.CreateResponse()).Returns(functionResponse.Object);
-            return functionRequest.Object;
+            var functionRequest = Substitute.For<HttpRequestData>(context);
+            functionRequest.Headers.Returns(headers);
+            functionRequest.Query.Returns(query);
+            functionRequest.Body.Returns(new MemoryStream(body));
+            functionRequest.CreateResponse().Returns(functionResponse);
+            return functionRequest;
         }
     }
 }

@@ -1,5 +1,5 @@
 using AgainstTheSpread.Core.Models;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace AgainstTheSpread.Tests.Models;

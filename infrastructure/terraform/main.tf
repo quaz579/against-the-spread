@@ -4,16 +4,24 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 4.0"
     }
   }
 }
 
 provider "azurerm" {
   features {}
+
+  subscription_id = var.subscription_id
 }
 
 # Variables
+variable "subscription_id" {
+  description = "Azure subscription ID. Locally: copy terraform.tfvars.example to terraform.tfvars (gitignored). In CI: set ARM_SUBSCRIPTION_ID from a repository secret and leave this unset."
+  type        = string
+  default     = null
+}
+
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
@@ -108,7 +116,7 @@ resource "azurerm_linux_function_app" "main" {
 
   site_config {
     application_stack {
-      dotnet_version              = "8.0"
+      dotnet_version              = "9.0"
       use_dotnet_isolated_runtime = true
     }
 
