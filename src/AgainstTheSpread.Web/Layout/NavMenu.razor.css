@@ -81,3 +81,45 @@
         overflow-y: auto;
     }
 }
+
+.navbar-brand {
+    align-items: center;
+    display: inline-flex;
+    font-weight: 750;
+    gap: 0.45rem;
+}
+
+.navbar-brand span {
+    font-size: 1.15rem;
+}
+
+.nav-section-label {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    padding: 1.15rem 1rem 0.35rem;
+    text-transform: uppercase;
+}
+
+.nav-section-label--admin {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    margin-top: 0.45rem;
+}
+
+@media (max-width: 640.98px) {
+    .top-row {
+        background: linear-gradient(135deg, #101a35, #2b1651);
+        border-bottom: 0;
+        min-height: 3.5rem;
+    }
+
+    .top-row .navbar-brand {
+        color: white;
+        font-size: 1rem;
+    }
+
+    .top-row .navbar-toggler {
+        border-color: rgba(255, 255, 255, 0.28);
+    }
+}

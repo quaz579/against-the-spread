@@ -11,8 +11,15 @@
 
 <PageTitle>Bowl Picks - Against The Spread</PageTitle>
 
-<div class="container mt-4">
-    <h1 class="mb-4">🏈 Bowl Game Picks</h1>
+<div class="page-shell bowl-page @(IsAllPicksValid ? "has-action-dock" : "")">
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Postseason card</span>
+            <h1>Bowl game picks</h1>
+            <p>Make your spread pick, confidence ranking, and outright winner for every bowl game.</p>
+        </div>
+        <span class="step-badge">Bowl season</span>
+    </div>
 
     @if (isLoading)
     {
@@ -33,9 +40,13 @@
     else if (bowlLines == null)
     {
         <!-- Year Selection and Name Entry -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <h3 class="card-title">Enter Your Information</h3>
+        <div class="setup-card mb-4">
+            <div class="setup-card__header">
+                <span class="section-kicker">Start here</span>
+                <h2>Enter your information</h2>
+                <p>Use the same name that appears on the Lines sheet.</p>
+            </div>
+            <div class="setup-card__body">
 
                 <div class="mb-3">
                     <label for="userName" class="form-label">Your Name</label>
@@ -52,7 +63,7 @@
                     </select>
                 </div>
 
-                <button class="btn btn-primary btn-lg" @onclick="LoadBowlLines"
+                <button class="btn btn-primary btn-lg cta-primary setup-submit" @onclick="LoadBowlLines"
                     disabled="@string.IsNullOrWhiteSpace(userName)">
                     Continue to Bowl Picks
                 </button>
@@ -63,20 +74,20 @@
     {
         <!-- Bowl Picks Selection -->
         <div class="mb-3">
-            <button class="btn btn-secondary" @onclick="GoBack">
+            <button class="btn btn-secondary btn-link back-link" @onclick="GoBack">
                 ← Back to Selection
             </button>
         </div>
 
         <!-- Progress and Validation Status -->
-        <div class="alert @(IsAllPicksValid ? "alert-success" : "alert-info")" role="alert">
-            <div class="d-flex justify-content-between align-items-center">
+        <div class="alert @(IsAllPicksValid ? "alert-success" : "alert-info") pick-status bowl-status" role="alert">
+            <div class="bowl-status__grid">
                 <div>
                     <strong>@userName</strong> - Bowl Season @selectedYear
                     <br />
                     <strong>Picks Made: @CompletedPicksCount / @bowlLines.TotalGames</strong>
                 </div>
-                <div class="text-end">
+                <div class="bowl-status__confidence">
                     <div class="@(IsConfidenceSumValid ? "text-success" : "text-danger")">
                         <strong>Confidence Sum: @CurrentConfidenceSum / @ExpectedConfidenceSum</strong>
                         @if (IsConfidenceSumValid)
@@ -99,7 +110,7 @@
         </div>
 
         <!-- Instructions -->
-        <div class="alert alert-warning mb-4">
+        <div class="alert alert-warning instruction-card mb-4">
             <h5>📋 Instructions</h5>
             <ul class="mb-0">
                 <li><strong>Spread Pick:</strong> Select who you think will cover the spread</li>
@@ -110,21 +121,20 @@
         </div>
 
         <!-- Bowl Games List -->
-        <div class="row">
+        <div class="bowl-game-list">
             @foreach (var game in bowlLines.Games.OrderBy(g => g.GameNumber))
             {
                 var pick = GetOrCreatePick(game.GameNumber);
 
-                <div class="col-12 mb-3">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="bowl-game-card card">
+                    <div class="bowl-game-header card-header">
                             <span><strong>Game @game.GameNumber:</strong> @game.BowlName</span>
                             <small class="text-muted">@game.GameDate.ToString("ddd M/d")</small>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
+                        <div class="bowl-game-body card-body">
+                            <div class="bowl-game-layout">
                                 <!-- Matchup Display -->
-                                <div class="col-md-4 mb-2">
+                                <div class="bowl-matchup">
                                     <div class="text-center">
                                         <div class="mb-2">
                                             <TeamLogo TeamName="@game.Favorite"
@@ -141,16 +151,20 @@
                                 </div>
 
                                 <!-- Spread Pick -->
-                                <div class="col-md-3 mb-2">
+                                <div class="bowl-control bowl-control--spread">
                                     <label class="form-label"><strong>Spread Pick</strong></label>
                                     <div class="btn-group-vertical w-100" role="group">
                                         <button type="button"
                                             class="btn @(pick.SpreadPick == game.Favorite ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.SpreadPick == game.Favorite)"
+                                            aria-label="Pick @game.Favorite @game.Line against the spread"
                                             @onclick="() => SetSpreadPick(game.GameNumber, game.Favorite)">
                                             @game.Favorite @game.Line
                                         </button>
                                         <button type="button"
                                             class="btn @(pick.SpreadPick == game.Underdog ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.SpreadPick == game.Underdog)"
+                                            aria-label="Pick @game.Underdog against the spread"
                                             @onclick="() => SetSpreadPick(game.GameNumber, game.Underdog)">
                                             @game.Underdog
                                         </button>
@@ -158,9 +172,9 @@
                                 </div>
 
                                 <!-- Confidence Points -->
-                                <div class="col-md-2 mb-2">
-                                    <label class="form-label"><strong>Confidence</strong></label>
-                                    <select class="form-select @(IsConfidencePointDuplicate(pick.ConfidencePoints) && pick.ConfidencePoints > 0 ? "border-danger" : "")"
+                                <div class="bowl-control bowl-control--confidence">
+                                    <label class="form-label" for="confidence-@game.GameNumber"><strong>Confidence</strong></label>
+                                    <select id="confidence-@game.GameNumber" class="form-select @(IsConfidencePointDuplicate(pick.ConfidencePoints) && pick.ConfidencePoints > 0 ? "border-danger" : "")"
                                         @onchange="@(e => HandleConfidenceChange(game.GameNumber, e))">
                                         <option value="0" selected="@(pick.ConfidencePoints == 0)">Select...</option>
                                         @for (int i = 1; i <= bowlLines.TotalGames; i++)
@@ -174,16 +188,20 @@
                                 </div>
 
                                 <!-- Outright Winner -->
-                                <div class="col-md-3 mb-2">
+                                <div class="bowl-control bowl-control--winner">
                                     <label class="form-label"><strong>Outright Winner</strong></label>
                                     <div class="btn-group-vertical w-100" role="group">
                                         <button type="button"
                                             class="btn @(pick.OutrightWinner == game.Favorite ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.OutrightWinner == game.Favorite)"
+                                            aria-label="Pick @game.Favorite as the outright winner"
                                             @onclick="() => SetOutrightWinner(game.GameNumber, game.Favorite)">
                                             @game.Favorite
                                         </button>
                                         <button type="button"
                                             class="btn @(pick.OutrightWinner == game.Underdog ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.OutrightWinner == game.Underdog)"
+                                            aria-label="Pick @game.Underdog as the outright winner"
                                             @onclick="() => SetOutrightWinner(game.GameNumber, game.Underdog)">
                                             @game.Underdog
                                         </button>
@@ -192,15 +210,14 @@
                             </div>
                         </div>
                     </div>
-                </div>
             }
         </div>
 
         <!-- Submit Button -->
         @if (IsAllPicksValid)
         {
-            <div class="fixed-bottom bg-white border-top p-3 shadow">
-                <div class="container">
+            <div class="action-dock">
+                <div class="action-dock__inner">
                     @if (generatedExcelBytes == null)
                     {
                         <div class="d-grid gap-2">

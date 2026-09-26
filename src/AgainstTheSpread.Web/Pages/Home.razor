@@ -2,18 +2,37 @@
 
 <PageTitle>Home</PageTitle>
 
-<div class="text-center mt-5">
-    <h1 class="display-4">🏈 Against The Spread</h1>
-    <p class="lead">College Football Pick'em</p>
+<div class="home-shell">
+    <section class="home-hero" aria-labelledby="home-title">
+        <div class="home-hero__content">
+            <span class="eyebrow">College football pick'em</span>
+            <h1 id="home-title">Against<br />The Spread</h1>
+            <p class="home-hero__lede">Make smarter weekly picks, lock in your card, and take it with you.</p>
+            <div class="home-actions">
+                <a href="/picks" class="btn btn-primary btn-lg cta-primary">
+                    Make weekly picks <span aria-hidden="true">→</span>
+                </a>
+                <a href="/bowl-picks" class="home-secondary-link">Explore bowl picks <span aria-hidden="true">↗</span></a>
+            </div>
+        </div>
+        <div class="home-hero__mark" aria-hidden="true">🏈</div>
+    </section>
 
-    <div class="mt-4">
-        <a href="/picks" class="btn btn-primary btn-lg">Make Your Picks</a>
-    </div>
-
-    <div class="mt-5">
-        <p class="text-muted">
-            Pick 6 games each week against the spread.<br />
-            Download your picks as an Excel file.
-        </p>
-    </div>
+    <section class="home-highlights" aria-label="How it works">
+        <div class="highlight-card">
+            <span class="highlight-card__number">01</span>
+            <strong>Choose your week</strong>
+            <span>Start with your name and the current season card.</span>
+        </div>
+        <div class="highlight-card">
+            <span class="highlight-card__number">02</span>
+            <strong>Pick six teams</strong>
+            <span>Tap the side you like in each matchup.</span>
+        </div>
+        <div class="highlight-card">
+            <span class="highlight-card__number">03</span>
+            <strong>Download your card</strong>
+            <span>Generate an Excel file or print a clean copy.</span>
+        </div>
+    </section>
 </div>
