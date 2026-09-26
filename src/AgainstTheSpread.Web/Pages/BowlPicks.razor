@@ -11,7 +11,7 @@
 
 <PageTitle>Bowl Picks - Against The Spread</PageTitle>
 
-<div class="page-shell bowl-page">
+<div class="page-shell bowl-page @(IsAllPicksValid ? "has-action-dock" : "")">
     <div class="page-header">
         <div>
             <span class="eyebrow">Postseason card</span>
@@ -156,11 +156,15 @@
                                     <div class="btn-group-vertical w-100" role="group">
                                         <button type="button"
                                             class="btn @(pick.SpreadPick == game.Favorite ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.SpreadPick == game.Favorite)"
+                                            aria-label="Pick @game.Favorite @game.Line against the spread"
                                             @onclick="() => SetSpreadPick(game.GameNumber, game.Favorite)">
                                             @game.Favorite @game.Line
                                         </button>
                                         <button type="button"
                                             class="btn @(pick.SpreadPick == game.Underdog ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.SpreadPick == game.Underdog)"
+                                            aria-label="Pick @game.Underdog against the spread"
                                             @onclick="() => SetSpreadPick(game.GameNumber, game.Underdog)">
                                             @game.Underdog
                                         </button>
@@ -169,8 +173,8 @@
 
                                 <!-- Confidence Points -->
                                 <div class="bowl-control bowl-control--confidence">
-                                    <label class="form-label"><strong>Confidence</strong></label>
-                                    <select class="form-select @(IsConfidencePointDuplicate(pick.ConfidencePoints) && pick.ConfidencePoints > 0 ? "border-danger" : "")"
+                                    <label class="form-label" for="confidence-@game.GameNumber"><strong>Confidence</strong></label>
+                                    <select id="confidence-@game.GameNumber" class="form-select @(IsConfidencePointDuplicate(pick.ConfidencePoints) && pick.ConfidencePoints > 0 ? "border-danger" : "")"
                                         @onchange="@(e => HandleConfidenceChange(game.GameNumber, e))">
                                         <option value="0" selected="@(pick.ConfidencePoints == 0)">Select...</option>
                                         @for (int i = 1; i <= bowlLines.TotalGames; i++)
@@ -189,11 +193,15 @@
                                     <div class="btn-group-vertical w-100" role="group">
                                         <button type="button"
                                             class="btn @(pick.OutrightWinner == game.Favorite ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.OutrightWinner == game.Favorite)"
+                                            aria-label="Pick @game.Favorite as the outright winner"
                                             @onclick="() => SetOutrightWinner(game.GameNumber, game.Favorite)">
                                             @game.Favorite
                                         </button>
                                         <button type="button"
                                             class="btn @(pick.OutrightWinner == game.Underdog ? "btn-success" : "btn-outline-primary")"
+                                            aria-pressed="@(pick.OutrightWinner == game.Underdog)"
+                                            aria-label="Pick @game.Underdog as the outright winner"
                                             @onclick="() => SetOutrightWinner(game.GameNumber, game.Underdog)">
                                             @game.Underdog
                                         </button>

@@ -375,6 +375,10 @@ body {
     max-width: 720px;
 }
 
+.has-action-dock {
+    padding-bottom: calc(12rem + env(safe-area-inset-bottom));
+}
+
 .action-dock .btn {
     min-height: 3.25rem;
 }
@@ -606,13 +610,15 @@ body {
         text-align: right;
     }
 
+    .home-highlights {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1100px) {
     .bowl-game-layout {
         align-items: stretch;
         grid-template-columns: minmax(10rem, 1.15fr) minmax(9rem, 0.95fr) minmax(8rem, 0.7fr) minmax(9rem, 0.95fr);
-    }
-
-    .home-highlights {
-        grid-template-columns: repeat(3, 1fr);
     }
 }
 
