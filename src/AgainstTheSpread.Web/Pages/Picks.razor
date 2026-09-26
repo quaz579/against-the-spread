@@ -12,8 +12,15 @@
 
 <PageTitle>Make Your Picks - Against The Spread</PageTitle>
 
-<div class="container mt-4">
-    <h1 class="mb-4">🏈 Make Your Weekly Picks</h1>
+<div class="page-shell picks-page">
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Weekly card</span>
+            <h1>Make your weekly picks</h1>
+            <p>Choose six teams against the spread. You can change a pick anytime before you download.</p>
+        </div>
+        <span class="step-badge">Step <strong>@(currentWeekLines == null ? "1" : "2")</strong> of 2</span>
+    </div>
 
     @if (isLoading)
     {
@@ -34,9 +41,13 @@
     else if (currentWeekLines == null)
     {
         <!-- Week Selection -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <h3 class="card-title">Select Week and Enter Your Name</h3>
+        <div class="setup-card mb-4">
+            <div class="setup-card__header">
+                <span class="section-kicker">Start here</span>
+                <h2>Select a week</h2>
+                <p>Your name should match the name used for your league entry.</p>
+            </div>
+            <div class="setup-card__body">
 
                 <div class="mb-3">
                     <label for="userName" class="form-label">Your Name</label>
@@ -64,7 +75,7 @@
                     </select>
                 </div>
 
-                <button class="btn btn-primary btn-lg" @onclick="LoadGames"
+                <button class="btn btn-primary btn-lg cta-primary setup-submit" @onclick="LoadGames"
                     disabled="@(string.IsNullOrWhiteSpace(userName) || selectedWeek == 0)">
                     Continue to Picks
                 </button>
@@ -75,12 +86,12 @@
     {
         <!-- Game Selection -->
         <div class="mb-3">
-            <button class="btn btn-secondary" @onclick="GoBack">
+            <button class="btn btn-secondary btn-link back-link" @onclick="GoBack">
                 ← Back to Week Selection
             </button>
         </div>
 
-        <div class="alert alert-info" role="alert">
+        <div class="alert alert-info pick-status" role="alert">
             <strong>@userName</strong> - Week @selectedWeek, @selectedYear
             <br />
             <strong>Selected: @selectedPicks.Count / 6 picks</strong>
@@ -90,7 +101,7 @@
             }
         </div>
 
-        <div class="row">
+        <div class="game-grid">
             @foreach (var game in currentWeekLines.Games)
             {
                 var isFavoriteSelected = selectedPicks.Contains(game.Favorite);
@@ -99,11 +110,13 @@
                 var favoriteColors = TeamColorService.GetTeamColors(game.Favorite);
                 var underdogColors = TeamColorService.GetTeamColors(game.Underdog);
 
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <small class="text-muted">@gameDate</small>
-                            <div class="d-grid gap-2 mt-2">
+                <div class="game-card card">
+                    <div class="game-card__body card-body">
+                        <div class="game-card__meta">
+                            <span>Matchup</span>
+                            <small>@gameDate</small>
+                        </div>
+                        <div class="pick-options d-grid">
                                 <button class="btn @GetButtonClass(isFavoriteSelected, favoriteColors)"
                                     style="@GetButtonStyle(isFavoriteSelected, favoriteColors)"
                                     @onclick="() => TogglePick(game.Favorite)"
@@ -117,7 +130,7 @@
                                     }
                                 </button>
 
-                                <div class="text-center">
+                                <div class="game-card__versus">
                                     <small class="text-muted">@game.VsAt</small>
                                 </div>
 
@@ -136,14 +149,13 @@
                             </div>
                         </div>
                     </div>
-                </div>
             }
         </div>
 
         @if (selectedPicks.Count == 6)
         {
-            <div class="fixed-bottom bg-white border-top p-3 shadow">
-                <div class="container">
+            <div class="action-dock">
+                <div class="action-dock__inner">
                     @if (generatedExcelBytes == null)
                     {
                         <div class="d-grid gap-2">
@@ -379,7 +391,7 @@
         // If selected, use bright green with dark border
         if (isSelected)
         {
-            return "background-color: #00ff00; border: 3px solid #000000; color: #000000; font-weight: bold;";
+            return "background-color: #14a96b; border: 2px solid #0b6b43; color: #FFFFFF; font-weight: bold;";
         }
 
         // If no colors, don't add custom styles

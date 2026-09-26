@@ -1,7 +1,7 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Against The Spread</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+        <a class="navbar-brand" href=""><span aria-hidden="true">🏈</span> Against The Spread</a>
+        <button title="Navigation menu" aria-label="Toggle navigation" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
@@ -9,6 +9,7 @@
 
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
+        <div class="nav-section-label">Play</div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
@@ -24,6 +25,7 @@
                 <span class="bi bi-trophy-fill" aria-hidden="true"></span> Bowl Picks
             </NavLink>
         </div>
+        <div class="nav-section-label nav-section-label--admin">Manage</div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="admin">
                 <span class="bi bi-upload" aria-hidden="true"></span> Admin Upload
