@@ -251,6 +251,33 @@ public class ExcelServiceTests : IDisposable
     }
 
     [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task ParseWeeklyLinesAsync_WithKnownMisspellingOfWednesday_AcceptsDateWithoutWeakeningValidation(int dateColumn)
+    {
+        const string header = "Wednsday, October 21, 2026";
+        using var stream = new MemoryStream(CreateSectionHeaderExcel(header, dateColumn));
+
+        var result = await _excelService.ParseWeeklyLinesAsync(stream, 3, 2026);
+
+        result.Games.Select(g => g.GameDate).Should().Equal(
+            new DateTime(2026, 9, 17), new DateTime(2026, 10, 21));
+        result.Games.Select(g => g.Favorite).Should().Equal("Pittsburgh", "Miami (FL)");
+    }
+
+    [Fact]
+    public async Task ParseWeeklyLinesAsync_WithMisspelledWednesdayAndWrongWeekday_StillRejectsHeader()
+    {
+        const string header = "Wednsday, October 20, 2026";
+        using var stream = new MemoryStream(CreateSectionHeaderExcel(header, 3));
+
+        var exception = await Assert.ThrowsAsync<FormatException>(
+            () => _excelService.ParseWeeklyLinesAsync(stream, 3, 2026));
+
+        exception.Message.Should().Contain(header).And.Contain("weekday");
+    }
+
+    [Theory]
     [InlineData("09.31.2026", 1)]
     [InlineData("09.31.2026", 2)]
     [InlineData("09.31.2026", 3)]
