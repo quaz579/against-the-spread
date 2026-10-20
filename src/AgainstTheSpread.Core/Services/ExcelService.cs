@@ -217,7 +217,12 @@ public class ExcelService : IExcelService
     private static bool TryParseDateHeader(ExcelRange cell, bool throwOnInvalid, out DateTime date)
     {
         var text = cell.Text.Trim();
-        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+        // Accept the known "Wednsday" typo used in uploaded lines while still
+        // letting DateTime validate that the weekday matches the calendar date.
+        var parseText = text.StartsWith("Wednsday,", StringComparison.OrdinalIgnoreCase)
+            ? "Wednesday," + text["Wednsday,".Length..]
+            : text;
+        if (DateTime.TryParse(parseText, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
             return true;
 
         if (text.Length == 0 || !throwOnInvalid)
